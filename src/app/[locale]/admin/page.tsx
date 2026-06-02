@@ -1,213 +1,624 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Plus, Pencil, Trash2, Eye, Users, TrendingUp, Share2, Upload, Download, Search } from 'lucide-react'
-import { MOCK_INFLUENCERS } from '@/lib/data'
-import { formatNumber, getAvatarColor, NICHE_LABELS, cn } from '@/lib/utils'
+import {
+  ArrowRight, Plus, Pencil, Trash2, Eye, Users, TrendingUp,
+  Share2, Upload, Download, Search, X, Save, Check, AlertCircle,
+  Link2, Image as ImageIcon, DollarSign, ChevronDown
+} from 'lucide-react'
+
+const NICHES = ['lifestyle','fashion','tech','auto','sports','food','travel','business']
+const NICHE_AR: Record<string,string> = {
+  lifestyle:'لايف ستايل', fashion:'أزياء', tech:'تقنية',
+  auto:'سيارات', sports:'رياضة', food:'طعام', travel:'سفر', business:'أعمال'
+}
+const PLATFORMS = ['instagram','tiktok','snapchat','youtube','twitter']
+const PLATFORM_LABELS: Record<string,string> = {
+  instagram:'Instagram', tiktok:'TikTok', snapchat:'Snapchat', youtube:'YouTube', twitter:'X / Twitter'
+}
+
+const emptyInfluencer = () => ({
+  id: '', slug: '', full_name: '', handle: '', bio: '',
+  avatar_url: '', country: 'السعودية', city: '', gender: 'female',
+  niche: [] as string[], languages: ['العربية'],
+  is_verified: false, is_featured: false, is_active: true,
+  social_accounts: [] as any[],
+  brand_names: [] as string[],
+  collab_types: [] as string[],
+  price_from: '', price_to: '', price_note: 'غير شامل الضريبة',
+})
+
+type Inf = ReturnType<typeof emptyInfluencer>
 
 export default function AdminPage({ params }: { params: { locale: string } }) {
   const { locale } = params
   const isAr = locale === 'ar'
-  const [tab, setTab] = useState<'influencers' | 'lists' | 'import'>('influencers')
+  const [tab, setTab] = useState<'influencers'|'lists'|'import'>('influencers')
   const [search, setSearch] = useState('')
+  const [influencers, setInfluencers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editData, setEditData] = useState<Inf>(emptyInfluencer())
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<{msg:string,type:'ok'|'err'}|null>(null)
+  const [deleteId, setDeleteId] = useState<string|null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [shareModal, setShareModal] = useState(false)
+  const [listName, setListName] = useState('')
+  const [listPw, setListPw] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [shareLink, setShareLink] = useState('')
+  const [importResult, setImportResult] = useState<any>(null)
+  const [importing, setImporting] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const importRef = useRef<HTMLInputElement>(null)
 
-  const filtered = MOCK_INFLUENCERS.filter(i =>
-    !search || i.full_name.includes(search) || i.handle?.includes(search)
-  )
+  const showToast = (msg: string, type: 'ok'|'err' = 'ok') => {
+    setToast({msg, type})
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  useEffect(() => { loadInfluencers() }, [])
+
+  async function loadInfluencers() {
+    setLoading(true)
+    try {
+      const r = await fetch('/api/influencers?per_page=100')
+      const d = await r.json()
+      setInfluencers(d.data ?? [])
+    } catch { showToast('خطأ في تحميل البيانات', 'err') }
+    setLoading(false)
+  }
+
+  function openAdd() {
+    setEditData(emptyInfluencer())
+    setShowForm(true)
+  }
+
+  function openEdit(inf: any) {
+    setEditData({
+      ...emptyInfluencer(),
+      ...inf,
+      niche: inf.niche ?? [],
+      social_accounts: inf.social_accounts ?? [],
+      brand_names: inf.brand_names ?? [],
+      collab_types: inf.collab_types ?? [],
+      price_from: inf.price_from ?? '',
+      price_to: inf.price_to ?? '',
+      price_note: inf.price_note ?? 'غير شامل الضريبة',
+    })
+    setShowForm(true)
+  }
+
+  async function saveInfluencer() {
+    if (!editData.full_name.trim()) { showToast('الاسم مطلوب', 'err'); return }
+    setSaving(true)
+    try {
+      const slug = editData.slug || editData.full_name.trim().replace(/\s+/g,'-').replace(/[^\w-]/g,'') + '-' + Date.now()
+      const payload = { ...editData, slug }
+      const isNew = !editData.id
+      const url = isNew ? '/api/influencers' : `/api/influencers/${editData.id}`
+      const method = isNew ? 'POST' : 'PUT'
+      const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      if (!r.ok) throw new Error(await r.text())
+      showToast(isNew ? 'تمت الإضافة بنجاح ✅' : 'تم التعديل بنجاح ✅')
+      setShowForm(false)
+      loadInfluencers()
+    } catch (e: any) { showToast('خطأ: ' + e.message, 'err') }
+    setSaving(false)
+  }
+
+  async function deleteInfluencer(id: string) {
+    try {
+      await fetch(`/api/influencers/${id}`, { method: 'DELETE' })
+      showToast('تم الحذف')
+      setDeleteId(null)
+      loadInfluencers()
+    } catch { showToast('خطأ في الحذف', 'err') }
+  }
+
+  async function uploadAvatar(file: File) {
+    setUploadingAvatar(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('folder', 'avatars')
+      const r = await fetch('/api/upload', { method: 'POST', body: fd })
+      const d = await r.json()
+      if (d.url) { setEditData(p => ({...p, avatar_url: d.url})); showToast('تم رفع الصورة ✅') }
+      else throw new Error(d.error)
+    } catch (e: any) { showToast('خطأ في الرفع: ' + e.message, 'err') }
+    setUploadingAvatar(false)
+  }
+
+  async function createShareList() {
+    if (!listName.trim()) { showToast('اسم القائمة مطلوب', 'err'); return }
+    if (selectedIds.size === 0) { showToast('اختر مؤثراً على الأقل', 'err'); return }
+    try {
+      const r = await fetch('/api/share', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name: listName,
+          password: listPw || undefined,
+          influencer_ids: Array.from(selectedIds),
+        })
+      })
+      const d = await r.json()
+      setShareLink(d.share_url ?? '')
+      showToast('تم إنشاء الرابط ✅')
+    } catch { showToast('خطأ في إنشاء القائمة', 'err') }
+  }
+
+  async function handleImport(file: File) {
+    setImporting(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const r = await fetch('/api/import', { method: 'POST', body: fd })
+      const d = await r.json()
+      setImportResult(d)
+      if (d.success > 0) { loadInfluencers(); showToast(`تم استيراد ${d.success} مؤثر ✅`) }
+    } catch { showToast('خطأ في الاستيراد', 'err') }
+    setImporting(false)
+  }
+
+  function addSocialAccount() {
+    setEditData(p => ({...p, social_accounts: [...(p.social_accounts||[]), {platform:'instagram',handle:'',followers:0,avg_views:0,engagement_rate:0,profile_url:''}]}))
+  }
+
+  function updateSocial(i: number, key: string, val: any) {
+    setEditData(p => { const arr = [...(p.social_accounts||[])]; arr[i] = {...arr[i],[key]:val}; return {...p,social_accounts:arr} })
+  }
+
+  function removeSocial(i: number) {
+    setEditData(p => ({...p, social_accounts: (p.social_accounts||[]).filter((_:any,j:number)=>j!==i)}))
+  }
+
+  const filtered = influencers.filter(i => !search || i.full_name?.includes(search) || i.handle?.includes(search))
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isAr ? 'rtl' : 'ltr'}>
-      {/* TOP NAV */}
-      <nav className="bg-gray-900 text-white px-4 h-14 flex items-center gap-4">
-        <Link href={`/${locale}`} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white">
-          <ArrowRight className={cn('w-4 h-4', isAr ? '' : 'rotate-180')} />
+
+      {/* TOAST */}
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm shadow-lg ${toast.type==='ok' ? 'bg-gray-900 text-white' : 'bg-red-500 text-white'}`}>
+          {toast.type==='ok' ? <Check className="w-4 h-4"/> : <AlertCircle className="w-4 h-4"/>}
+          {toast.msg}
+        </div>
+      )}
+
+      {/* NAV */}
+      <nav className="bg-gray-900 text-white px-4 h-14 flex items-center gap-4 sticky top-0 z-50">
+        <Link href={`/${locale}`} className="flex items-center gap-1.5 text-gray-400 hover:text-white">
+          <ArrowRight className={`w-4 h-4 ${isAr?'':'rotate-180'}`}/>
         </Link>
-        <div className="text-sm font-semibold">InfluenceX Admin</div>
-        <div className="ms-auto flex items-center gap-2 text-xs text-gray-400">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full" />
-          {isAr ? 'مدير النظام' : 'System Admin'}
+        <div className="text-sm font-semibold">InfluenceX — لوحة التحكم</div>
+        <div className="ms-auto flex items-center gap-3 text-xs text-gray-400">
+          <div className="w-2 h-2 bg-emerald-400 rounded-full"/>
+          <span>{filtered.length} مؤثر</span>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* STATS */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {[
-            { icon: Users, label: isAr ? 'المؤثرون' : 'Influencers', value: MOCK_INFLUENCERS.length, color: 'text-brand-600' },
-            { icon: Eye,   label: isAr ? 'مشاهدات اليوم' : "Today's Views", value: '1,248', color: 'text-emerald-600' },
-            { icon: TrendingUp, label: isAr ? 'قوائم نشطة' : 'Active Lists', value: '12', color: 'text-amber-600' },
-            { icon: Share2, label: isAr ? 'مشاركات' : 'Shares', value: '89', color: 'text-blue-600' },
-          ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="bg-white border border-gray-100 rounded-xl p-4">
-              <Icon className={cn('w-5 h-5 mb-2', color)} />
-              <div className="text-2xl font-bold text-gray-900">{value}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{label}</div>
-            </div>
-          ))}
-        </div>
+      <div className="max-w-6xl mx-auto px-4 py-6">
 
         {/* TABS */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-5">
-          {([
-            { id: 'influencers', label: isAr ? 'المؤثرون' : 'Influencers' },
-            { id: 'lists', label: isAr ? 'قوائم المشاركة' : 'Share Lists' },
-            { id: 'import', label: isAr ? 'استيراد البيانات' : 'Import Data' },
-          ] as const).map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={cn('text-xs px-4 py-1.5 rounded-lg transition-colors',
-                tab === t.id ? 'bg-white text-gray-900 font-medium shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
-              {t.label}
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-6">
+          {([['influencers','المؤثرون'],['lists','قوائم المشاركة'],['import','استيراد CSV']] as const).map(([id,label])=>(
+            <button key={id} onClick={()=>setTab(id)}
+              className={`text-xs px-4 py-1.5 rounded-lg transition-colors ${tab===id?'bg-white text-gray-900 font-medium shadow-sm':'text-gray-500 hover:text-gray-700'}`}>
+              {label}
             </button>
           ))}
         </div>
 
-        {/* TAB: INFLUENCERS */}
-        {tab === 'influencers' && (
+        {/* ===== TAB: INFLUENCERS ===== */}
+        {tab==='influencers' && (
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-1 flex items-center border border-gray-200 rounded-xl bg-white overflow-hidden">
-                <Search className="w-4 h-4 text-gray-400 mx-3" />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder={isAr ? 'بحث...' : 'Search...'}
-                  className="flex-1 py-2 text-sm outline-none" />
+                <Search className="w-4 h-4 text-gray-400 mx-3"/>
+                <input value={search} onChange={e=>setSearch(e.target.value)}
+                  placeholder="بحث..." className="flex-1 py-2 text-sm outline-none"/>
+                {search && <button onClick={()=>setSearch('')} className="p-2"><X className="w-3.5 h-3.5 text-gray-400"/></button>}
               </div>
-              <button className="flex items-center gap-1.5 bg-brand-500 text-white text-sm px-4 py-2 rounded-xl hover:bg-brand-600">
-                <Plus className="w-4 h-4" />
-                {isAr ? 'إضافة مؤثر' : 'Add Influencer'}
+              <button onClick={openAdd}
+                className="flex items-center gap-1.5 bg-violet-600 text-white text-sm px-4 py-2 rounded-xl hover:bg-violet-700">
+                <Plus className="w-4 h-4"/> إضافة مؤثر
               </button>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="text-start text-xs text-gray-400 font-medium px-4 py-3">{isAr ? 'المؤثر' : 'Influencer'}</th>
-                    <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden md:table-cell">{isAr ? 'المجال' : 'Niche'}</th>
-                    <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden md:table-cell">{isAr ? 'المتابعون' : 'Followers'}</th>
-                    <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden lg:table-cell">{isAr ? 'المشاهدات' : 'Views'}</th>
-                    <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden lg:table-cell">{isAr ? 'مشاهدات الملف' : 'Profile Views'}</th>
-                    <th className="px-4 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.map(inf => {
-                    const av = getAvatarColor(inf.full_name)
-                    return (
+            {loading ? (
+              <div className="space-y-2">{Array.from({length:5}).map((_,i)=><div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="w-10 px-4 py-3"><input type="checkbox" onChange={e=>{if(e.target.checked)setSelectedIds(new Set(filtered.map(i=>i.id)));else setSelectedIds(new Set())}}/></th>
+                      <th className="text-start text-xs text-gray-400 font-medium px-4 py-3">المؤثر</th>
+                      <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden md:table-cell">المجال</th>
+                      <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden md:table-cell">المتابعون</th>
+                      <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden lg:table-cell">الدولة</th>
+                      <th className="px-4 py-3"/>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {filtered.map(inf => (
                       <tr key={inf.id} className="hover:bg-gray-50/50">
                         <td className="px-4 py-3">
+                          <input type="checkbox" checked={selectedIds.has(inf.id)}
+                            onChange={e=>{const s=new Set(selectedIds);e.target.checked?s.add(inf.id):s.delete(inf.id);setSelectedIds(s)}}/>
+                        </td>
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold', av.bg, av.text)}>
-                              {inf.full_name.slice(0, 2)}
-                            </div>
+                            {inf.avatar_url ? (
+                              <img src={inf.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover"/>
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 text-xs font-bold">
+                                {inf.full_name?.slice(0,2)}
+                              </div>
+                            )}
                             <div>
-                              <div className="font-medium text-gray-900 text-sm">{inf.full_name}</div>
+                              <div className="font-medium text-gray-900">{inf.full_name}</div>
                               <div className="text-xs text-gray-400">{inf.handle}</div>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell">
-                          <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-full">
-                            {NICHE_LABELS[inf.niche[0]]?.[isAr ? 'ar' : 'en']}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {(inf.niche??[]).slice(0,2).map((n:string)=>(
+                              <span key={n} className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">{NICHE_AR[n]??n}</span>
+                            ))}
+                          </div>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell text-sm text-gray-700 font-medium">
-                          {formatNumber(inf.total_followers ?? 0)}
+                          {inf.total_followers ? (inf.total_followers>=1e6?(inf.total_followers/1e6).toFixed(1)+'M':inf.total_followers>=1000?(inf.total_followers/1000).toFixed(0)+'K':inf.total_followers) : '—'}
                         </td>
-                        <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-700">
-                          {formatNumber(inf.avg_views ?? 0)}
-                        </td>
-                        <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-700">
-                          {inf.profile_views.toLocaleString()}
-                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-500">{inf.country}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Link href={`/${locale}/influencer/${inf.slug}`}
-                              className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg">
-                              <Eye className="w-3.5 h-3.5" />
+                            <Link href={`/${locale}/influencer/${inf.slug}`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg">
+                              <Eye className="w-3.5 h-3.5"/>
                             </Link>
-                            <button className="p-1.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg">
-                              <Pencil className="w-3.5 h-3.5" />
+                            <button onClick={()=>openEdit(inf)} className="p-1.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg">
+                              <Pencil className="w-3.5 h-3.5"/>
                             </button>
-                            <button className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-                              <Trash2 className="w-3.5 h-3.5" />
+                            <button onClick={()=>setDeleteId(inf.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                              <Trash2 className="w-3.5 h-3.5"/>
                             </button>
                           </div>
                         </td>
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+                    ))}
+                    {filtered.length===0 && (
+                      <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">لا توجد بيانات</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-        {/* TAB: LISTS */}
-        {tab === 'lists' && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">{isAr ? 'قوائم المشاركة مع العملاء' : 'Client Share Lists'}</h2>
-              <button className="flex items-center gap-1.5 bg-brand-500 text-white text-sm px-4 py-2 rounded-xl hover:bg-brand-600">
-                <Plus className="w-4 h-4" />
-                {isAr ? 'قائمة جديدة' : 'New List'}
-              </button>
-            </div>
-            <div className="space-y-3">
-              {[
-                { name: isAr ? 'حملة رمضان 2025' : 'Ramadan Campaign 2025', count: 5, views: 124, token: 'abc123', protected: true },
-                { name: isAr ? 'عملاء السيارات' : 'Auto Clients', count: 3, views: 67, token: 'def456', protected: false },
-                { name: isAr ? 'مؤثرو الطعام' : 'Food Influencers', count: 4, views: 89, token: 'ghi789', protected: true },
-              ].map(list => (
-                <div key={list.token} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <div className="font-medium text-sm text-gray-900">{list.name}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {list.count} {isAr ? 'مؤثر' : 'influencers'} · {list.views} {isAr ? 'مشاهدة' : 'views'}
-                      {list.protected && <span className="ms-2 text-amber-600">🔒 {isAr ? 'محمية' : 'Protected'}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">
-                      /share/{list.token}
-                    </code>
-                    <button className="text-xs bg-brand-50 text-brand-700 px-3 py-1.5 rounded-lg hover:bg-brand-100">
-                      {isAr ? 'نسخ الرابط' : 'Copy Link'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* TAB: IMPORT */}
-        {tab === 'import' && (
-          <div className="max-w-lg">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">{isAr ? 'استيراد البيانات' : 'Import Data'}</h2>
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-brand-300 transition-colors cursor-pointer">
-                <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">{isAr ? 'اسحب ملف CSV أو Excel هنا' : 'Drop CSV or Excel file here'}</p>
-                <p className="text-xs text-gray-400 mt-1">.csv, .xlsx, .xls</p>
-                <button className="mt-3 text-xs bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600">
-                  {isAr ? 'اختر ملفاً' : 'Choose File'}
+            {selectedIds.size>0 && (
+              <div className="mt-4 flex items-center gap-3">
+                <span className="text-sm text-gray-600">{selectedIds.size} مؤثر محدد</span>
+                <button onClick={()=>setShareModal(true)} className="flex items-center gap-1.5 bg-violet-600 text-white text-sm px-4 py-2 rounded-xl">
+                  <Share2 className="w-4 h-4"/> إنشاء قائمة مشاركة
                 </button>
               </div>
-              <div className="flex items-center gap-2">
-                <Download className="w-4 h-4 text-gray-400" />
-                <a href="#" className="text-xs text-brand-600 hover:underline">
-                  {isAr ? 'تحميل نموذج CSV' : 'Download CSV Template'}
-                </a>
+            )}
+          </div>
+        )}
+
+        {/* ===== TAB: LISTS ===== */}
+        {tab==='lists' && (
+          <div className="max-w-lg">
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-4">إنشاء قائمة مشاركة جديدة</h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">اسم القائمة</label>
+                  <input value={listName} onChange={e=>setListName(e.target.value)}
+                    placeholder="مثال: حملة رمضان 2025"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">كلمة مرور (اختياري)</label>
+                  <input value={listPw} onChange={e=>setListPw(e.target.value)} type="password"
+                    placeholder="اتركها فارغة إذا تريد الوصول المفتوح"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">المؤثرون ({selectedIds.size} محدد)</label>
+                  <p className="text-xs text-gray-400">اذهب لتبويب المؤثرين وحدد المؤثرين أولاً</p>
+                </div>
+                <button onClick={createShareList}
+                  className="w-full bg-violet-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-violet-700">
+                  إنشاء الرابط
+                </button>
+                {shareLink && (
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-xs text-gray-500 mb-1">الرابط جاهز:</p>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-white border border-gray-200 rounded px-2 py-1 flex-1 truncate">{shareLink}</code>
+                      <button onClick={()=>{navigator.clipboard.writeText(shareLink);showToast('تم نسخ الرابط ✅')}}
+                        className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg">نسخ</button>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== TAB: IMPORT ===== */}
+        {tab==='import' && (
+          <div className="max-w-lg">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
+              <h2 className="text-sm font-semibold text-gray-700">استيراد مؤثرين من CSV</h2>
+              <div
+                onClick={()=>importRef.current?.click()}
+                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-violet-300 transition-colors">
+                {importing ? (
+                  <div className="text-sm text-gray-500">جارٍ الاستيراد...</div>
+                ) : (
+                  <>
+                    <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2"/>
+                    <p className="text-sm text-gray-500">اضغط لاختيار ملف CSV</p>
+                    <p className="text-xs text-gray-400 mt-1">.csv فقط</p>
+                  </>
+                )}
+              </div>
+              <input ref={importRef} type="file" accept=".csv" className="hidden"
+                onChange={e=>{ if(e.target.files?.[0]) handleImport(e.target.files[0]) }}/>
+
+              {importResult && (
+                <div className="bg-gray-50 rounded-xl p-3 text-sm">
+                  <p className="text-emerald-600">✅ تم استيراد {importResult.success} مؤثر</p>
+                  {importResult.skipped>0 && <p className="text-gray-500">تم تخطي {importResult.skipped} سطر</p>}
+                  {importResult.errors?.slice(0,3).map((e:string,i:number)=>(
+                    <p key={i} className="text-red-500 text-xs mt-1">{e}</p>
+                  ))}
+                </div>
+              )}
+
               <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-                <strong>{isAr ? 'الأعمدة المطلوبة:' : 'Required columns:'}</strong><br />
-                name, handle, country, city, gender, niche, instagram_followers, tiktok_followers, ...
+                <strong>الأعمدة المطلوبة:</strong><br/>
+                name, handle, country, city, gender, niche<br/>
+                <strong>مثال للمجال:</strong> lifestyle;fashion
               </div>
+
+              <a href="#" onClick={e=>{
+                e.preventDefault()
+                const csv = 'name,handle,country,city,gender,niche\nسارة المثال,@sara,السعودية,الرياض,female,lifestyle;fashion'
+                const b = new Blob([csv],{type:'text/csv'})
+                const u = URL.createObjectURL(b)
+                const a = document.createElement('a'); a.href=u; a.download='template.csv'; a.click()
+              }} className="flex items-center gap-1.5 text-xs text-violet-600 hover:underline">
+                <Download className="w-3.5 h-3.5"/> تحميل نموذج CSV
+              </a>
             </div>
           </div>
         )}
       </div>
+
+      {/* ===== FORM MODAL ===== */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-start justify-center p-4 overflow-y-auto" dir={isAr?'rtl':'ltr'}>
+          <div className="bg-white rounded-2xl w-full max-w-2xl my-4">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+              <h2 className="text-base font-semibold text-gray-900">
+                {editData.id ? 'تعديل مؤثر' : 'إضافة مؤثر جديد'}
+              </h2>
+              <button onClick={()=>setShowForm(false)} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg">
+                <X className="w-5 h-5"/>
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+
+              {/* صورة */}
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-full overflow-hidden bg-violet-100 flex items-center justify-center flex-shrink-0">
+                  {editData.avatar_url ? (
+                    <img src={editData.avatar_url} alt="" className="w-full h-full object-cover"/>
+                  ) : (
+                    <span className="text-violet-700 text-lg font-bold">{editData.full_name?.slice(0,2)||'صو'}</span>
+                  )}
+                </div>
+                <div>
+                  <button onClick={()=>fileRef.current?.click()}
+                    className="flex items-center gap-1.5 text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+                    <ImageIcon className="w-3.5 h-3.5"/> {uploadingAvatar ? 'جارٍ الرفع...' : 'رفع صورة'}
+                  </button>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                    onChange={e=>{ if(e.target.files?.[0]) uploadAvatar(e.target.files[0]) }}/>
+                  {editData.avatar_url && (
+                    <button onClick={()=>setEditData(p=>({...p,avatar_url:''}))}
+                      className="text-xs text-red-500 mt-1 block">حذف الصورة</button>
+                  )}
+                </div>
+              </div>
+
+              {/* البيانات الأساسية */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">الاسم الكامل *</label>
+                  <input value={editData.full_name} onChange={e=>setEditData(p=>({...p,full_name:e.target.value}))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">المعرف (Handle)</label>
+                  <input value={editData.handle} onChange={e=>setEditData(p=>({...p,handle:e.target.value}))}
+                    placeholder="@username"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">الدولة</label>
+                  <input value={editData.country} onChange={e=>setEditData(p=>({...p,country:e.target.value}))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">المدينة</label>
+                  <input value={editData.city} onChange={e=>setEditData(p=>({...p,city:e.target.value}))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">الجنس</label>
+                  <select value={editData.gender} onChange={e=>setEditData(p=>({...p,gender:e.target.value}))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400">
+                    <option value="female">أنثى</option>
+                    <option value="male">ذكر</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-4 pt-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={editData.is_verified} onChange={e=>setEditData(p=>({...p,is_verified:e.target.checked}))}/>
+                    موثّق
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={editData.is_featured} onChange={e=>setEditData(p=>({...p,is_featured:e.target.checked}))}/>
+                    مميز
+                  </label>
+                </div>
+              </div>
+
+              {/* النبذة */}
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">النبذة التعريفية</label>
+                <textarea value={editData.bio} onChange={e=>setEditData(p=>({...p,bio:e.target.value}))}
+                  rows={3} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400 resize-none"/>
+              </div>
+
+              {/* المجالات */}
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block">المجالات</label>
+                <div className="flex flex-wrap gap-2">
+                  {NICHES.map(n => (
+                    <button key={n} type="button"
+                      onClick={()=>setEditData(p=>({...p,niche:p.niche.includes(n)?p.niche.filter(x=>x!==n):[...p.niche,n]}))}
+                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${editData.niche.includes(n)?'bg-violet-50 border-violet-200 text-violet-700':'border-gray-200 text-gray-500'}`}>
+                      {NICHE_AR[n]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* المنصات الاجتماعية */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs text-gray-500">المنصات الاجتماعية</label>
+                  <button onClick={addSocialAccount} className="text-xs text-violet-600 flex items-center gap-1">
+                    <Plus className="w-3 h-3"/> إضافة منصة
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {(editData.social_accounts||[]).map((acc:any, i:number) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <select value={acc.platform} onChange={e=>updateSocial(i,'platform',e.target.value)}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none flex-1">
+                          {PLATFORMS.map(p=><option key={p} value={p}>{PLATFORM_LABELS[p]}</option>)}
+                        </select>
+                        <button onClick={()=>removeSocial(i)} className="text-red-400 hover:text-red-600">
+                          <X className="w-4 h-4"/>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={acc.handle} onChange={e=>updateSocial(i,'handle',e.target.value)}
+                          placeholder="@username"
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                        <div className="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-1.5">
+                          <Link2 className="w-3 h-3 text-gray-400 flex-shrink-0"/>
+                          <input value={acc.profile_url||''} onChange={e=>updateSocial(i,'profile_url',e.target.value)}
+                            placeholder="رابط الحساب"
+                            className="text-xs outline-none flex-1 bg-transparent"/>
+                        </div>
+                        <input value={acc.followers} onChange={e=>updateSocial(i,'followers',Number(e.target.value))}
+                          type="number" placeholder="عدد المتابعين"
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                        <input value={acc.avg_views} onChange={e=>updateSocial(i,'avg_views',Number(e.target.value))}
+                          type="number" placeholder="متوسط المشاهدات"
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                        <input value={acc.engagement_rate} onChange={e=>updateSocial(i,'engagement_rate',Number(e.target.value))}
+                          type="number" step="0.1" placeholder="معدل التفاعل %"
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* السعر */}
+              <div>
+                <label className="text-xs text-gray-500 mb-2 block flex items-center gap-1">
+                  <DollarSign className="w-3 h-3"/> السعر التقريبي (ريال سعودي)
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <input value={editData.price_from} onChange={e=>setEditData(p=>({...p,price_from:e.target.value}))}
+                    type="number" placeholder="من"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                  <input value={editData.price_to} onChange={e=>setEditData(p=>({...p,price_to:e.target.value}))}
+                    type="number" placeholder="إلى"
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+                  <select value={editData.price_note} onChange={e=>setEditData(p=>({...p,price_note:e.target.value}))}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400">
+                    <option value="غير شامل الضريبة">غير شامل الضريبة</option>
+                    <option value="شامل الضريبة">شامل الضريبة</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* العلامات التجارية */}
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">علامات تجارية سابقة (مفصولة بفاصلة)</label>
+                <input value={(editData.brand_names||[]).join(',')}
+                  onChange={e=>setEditData(p=>({...p,brand_names:e.target.value.split(',').map(x=>x.trim()).filter(Boolean)}))}
+                  placeholder="Samsung, Apple, STC"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+              </div>
+
+              {/* أنواع التعاون */}
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">أنواع التعاون (مفصولة بفاصلة)</label>
+                <input value={(editData.collab_types||[]).join(',')}
+                  onChange={e=>setEditData(p=>({...p,collab_types:e.target.value.split(',').map(x=>x.trim()).filter(Boolean)}))}
+                  placeholder="منشور ممول, ستوري, ريلز"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
+              </div>
+
+            </div>
+
+            <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100">
+              <button onClick={()=>setShowForm(false)} className="text-sm text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50">
+                إلغاء
+              </button>
+              <button onClick={saveInfluencer} disabled={saving}
+                className="flex items-center gap-1.5 bg-violet-600 text-white text-sm px-5 py-2 rounded-xl hover:bg-violet-700 disabled:opacity-50">
+                <Save className="w-4 h-4"/>
+                {saving ? 'جارٍ الحفظ...' : 'حفظ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRM */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
+            <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3"/>
+            <h3 className="text-base font-semibold text-gray-900 mb-1">تأكيد الحذف</h3>
+            <p className="text-sm text-gray-500 mb-4">هل أنت متأكد؟ لا يمكن التراجع.</p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={()=>setDeleteId(null)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm">إلغاء</button>
+              <button onClick={()=>deleteInfluencer(deleteId)} className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm">حذف</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
