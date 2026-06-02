@@ -1,27 +1,48 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
-import { BadgeCheck, MapPin, ArrowRight, Users, Eye, TrendingUp, Link2, Share2, ExternalLink, DollarSign } from 'lucide-react'
+import { useParams } from 'next/navigation'
+import { BadgeCheck, MapPin, ArrowRight, Users, Eye, TrendingUp, Link2, ExternalLink, DollarSign } from 'lucide-react'
 import { MOCK_INFLUENCERS } from '@/lib/data'
 import { NICHE_LABELS, PLATFORM_META, formatNumber, getAvatarColor, cn } from '@/lib/utils'
 
-export async function generateStaticParams() {
-  return MOCK_INFLUENCERS.map(inf => ({ slug: inf.slug }))
-}
-
-async function getInfluencer(slug: string) {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-    const res = await fetch(`${baseUrl}/api/influencers/${slug}`, { next: { revalidate: 60 } })
-    if (res.ok) return res.json()
-  } catch {}
-  return MOCK_INFLUENCERS.find(i => i.slug === slug) ?? null
-}
-
-export default async function InfluencerDetailPage({ params }: { params: { locale: string; slug: string } }) {
-  const { locale, slug } = params
+export default function InfluencerDetailPage() {
+  const params = useParams()
+  const locale = params.locale as string
+  const slug = params.slug as string
   const isAr = locale === 'ar'
-  const inf = await getInfluencer(slug)
-  if (!inf) notFound()
+
+  const [inf, setInf] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/influencers/${slug}`)
+        if (res.ok) { setInf(await res.json()); setLoading(false); return }
+      } catch {}
+      const found = MOCK_INFLUENCERS.find(i => i.slug === slug)
+      setInf(found ?? null)
+      setLoading(false)
+    }
+    load()
+  }, [slug])
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"/>
+    </div>
+  )
+
+  if (!inf) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-400">
+      <div className="text-center">
+        <p className="text-lg mb-2">404</p>
+        <Link href={`/${locale}`} className="text-sm text-violet-600 hover:underline">العودة للرئيسية</Link>
+      </div>
+    </div>
+  )
 
   const avatar = getAvatarColor(inf.full_name)
   const totalFollowers = inf.social_accounts?.reduce((s: number, a: any) => s + (a.followers ?? 0), 0) ?? inf.total_followers ?? 0
@@ -40,7 +61,6 @@ export default async function InfluencerDetailPage({ params }: { params: { local
       </div>
 
       <div className="max-w-3xl mx-auto px-4">
-        {/* HEADER */}
         <div className="bg-white border border-gray-100 rounded-2xl p-5 -mt-10 relative shadow-sm mb-4">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             <div className="flex-shrink-0">
@@ -69,12 +89,11 @@ export default async function InfluencerDetailPage({ params }: { params: { local
                 </span>
               </div>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <button onClick={() => { if (typeof window !== 'undefined') { navigator.clipboard?.writeText(window.location.href) } }}
-                className="flex items-center gap-1.5 text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
-                <Link2 className="w-3.5 h-3.5"/> {isAr ? 'نسخ الرابط' : 'Copy link'}
-              </button>
-            </div>
+            <button
+              onClick={() => navigator.clipboard?.writeText(window.location.href)}
+              className="flex items-center gap-1.5 text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
+              <Link2 className="w-3.5 h-3.5"/> {isAr ? 'نسخ الرابط' : 'Copy link'}
+            </button>
           </div>
           {inf.bio && <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t pt-4">{inf.bio}</p>}
           <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
@@ -86,12 +105,11 @@ export default async function InfluencerDetailPage({ params }: { params: { local
           </div>
         </div>
 
-        {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
           {[
             { icon: Users, label: isAr ? 'إجمالي المتابعين' : 'Total Followers', value: formatNumber(totalFollowers), sub: isAr ? 'عبر جميع المنصات' : 'all platforms' },
             { icon: Eye, label: isAr ? 'متوسط المشاهدات' : 'Avg Views', value: formatNumber(inf.avg_views ?? 0), sub: isAr ? 'لكل منشور' : 'per post' },
-            { icon: TrendingUp, label: isAr ? 'معدل التفاعل' : 'Engagement', value: `${(inf.avg_engagement ?? 0).toFixed?.(1) ?? inf.avg_engagement}%`, sub: isAr ? 'متوسط' : 'average' },
+            { icon: TrendingUp, label: isAr ? 'معدل التفاعل' : 'Engagement', value: `${Number(inf.avg_engagement ?? 0).toFixed(1)}%`, sub: isAr ? 'متوسط' : 'average' },
           ].map(({ icon: Icon, label, value, sub }) => (
             <div key={label} className="bg-white border border-gray-100 rounded-xl p-4">
               <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2"><Icon className="w-3.5 h-3.5"/> {label}</div>
@@ -101,7 +119,6 @@ export default async function InfluencerDetailPage({ params }: { params: { local
           ))}
         </div>
 
-        {/* السعر */}
         {(inf.price_from || inf.price_to) && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -121,11 +138,10 @@ export default async function InfluencerDetailPage({ params }: { params: { local
           </div>
         )}
 
-        {/* المنصات */}
         <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
           <h2 className="text-sm font-semibold text-gray-700 mb-3">{isAr ? 'المنصات الاجتماعية' : 'Social Platforms'}</h2>
           <div className="space-y-2">
-            {(inf.social_accounts ?? []).map((acc: any) => {
+            {(inf.social_accounts ?? []).map((acc: any, i: number) => {
               const meta = PLATFORM_META[acc.platform]
               const content = (
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
@@ -148,15 +164,14 @@ export default async function InfluencerDetailPage({ params }: { params: { local
                 </div>
               )
               return acc.profile_url ? (
-                <a key={acc.id ?? acc.platform} href={acc.profile_url} target="_blank" rel="noopener noreferrer">{content}</a>
+                <a key={i} href={acc.profile_url} target="_blank" rel="noopener noreferrer">{content}</a>
               ) : (
-                <div key={acc.id ?? acc.platform}>{content}</div>
+                <div key={i}>{content}</div>
               )
             })}
           </div>
         </div>
 
-        {/* أنواع التعاون */}
         {(inf.collab_types ?? []).length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">{isAr ? 'أنواع التعاون المتاحة' : 'Collaboration Types'}</h2>
@@ -168,7 +183,6 @@ export default async function InfluencerDetailPage({ params }: { params: { local
           </div>
         )}
 
-        {/* العلامات التجارية */}
         {(inf.brand_names ?? []).length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-8">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">{isAr ? 'علامات تجارية سابقة' : 'Previous Collaborations'}</h2>
