@@ -1,0 +1,25 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          50:  '#EEEDFE',
+          100: '#CECBF6',
+          200: '#AFA9EC',
+          400: '#7F77DD',
+          500: '#6860CC',
+          600: '#534AB7',
+          700: '#43399F',
+          800: '#3C3489',
+          900: '#26215C',
+        }
+      },
+      fontFamily: {
+        sans: ['Inter','system-ui','sans-serif'],
+      }
+    }
+  },
+  plugins: [],
+}
