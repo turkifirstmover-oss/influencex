@@ -3,33 +3,33 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
-  ArrowRight, Plus, Pencil, Trash2, Eye, Users, TrendingUp,
-  Share2, Upload, Download, Search, X, Save, Check, AlertCircle,
-  Link2, Image as ImageIcon, DollarSign, ChevronDown
+  ArrowRight, Plus, Pencil, Trash2, Eye, Search, X, Save,
+  Check, AlertCircle, Link2, ImageIcon, DollarSign, Share2,
+  Upload, Download, Clock, Copy, ToggleLeft, ToggleRight
 } from 'lucide-react'
 
 const NICHES = ['news','media','business','marketing','tech','ugc']
-  const NICHE_AR: Record<string,string> = {
+const NICHE_AR: Record<string,string> = {
   news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
   marketing:'تسويق', tech:'تقني', ugc:'UGC'
 }
 const PLATFORMS = ['instagram','tiktok','snapchat','youtube','twitter']
 const PLATFORM_LABELS: Record<string,string> = {
-  instagram:'Instagram', tiktok:'TikTok', snapchat:'Snapchat', youtube:'YouTube', twitter:'X / Twitter'
+  instagram:'Instagram', tiktok:'TikTok', snapchat:'Snapchat',
+  youtube:'YouTube', twitter:'X'
 }
 
 const emptyInfluencer = () => ({
-  id: '', slug: '', full_name: '', handle: '', bio: '',
-  avatar_url: '', country: 'السعودية', city: '', gender: 'female',
-  niche: [] as string[], languages: ['العربية'],
-  is_verified: false, is_featured: false, is_active: true,
-  social_accounts: [] as any[],
-  brand_names: [] as string[],
-  collab_types: [] as string[],
-  price_from: '', price_to: '', price_note: 'غير شامل الضريبة',
+  id:'', slug:'', full_name:'', handle:'', bio:'',
+  avatar_url:'', country:'السعودية', city:'', gender:'female',
+  niche:[] as string[], languages:['العربية'],
+  is_verified:false, is_featured:false, is_active:true,
+  social_accounts:[] as any[],
+  brand_names:[] as string[], collab_types:[] as string[],
+  price_from:'', price_to:'', price_note:'غير شامل الضريبة',
 })
 
-type Inf = ReturnType<typeof emptyInfluencer>
+function cn(...classes: any[]) { return classes.filter(Boolean).join(' ') }
 
 export default function AdminPage({ params }: { params: { locale: string } }) {
   const { locale } = params
@@ -39,24 +39,24 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
   const [influencers, setInfluencers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [editData, setEditData] = useState<Inf>(emptyInfluencer())
+  const [editData, setEditData] = useState<any>(emptyInfluencer())
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{msg:string,type:'ok'|'err'}|null>(null)
   const [deleteId, setDeleteId] = useState<string|null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [shareModal, setShareModal] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [listName, setListName] = useState('')
   const [listPw, setListPw] = useState('')
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [expiryDays, setExpiryDays] = useState(7)
   const [shareLink, setShareLink] = useState('')
+  const [shareLists, setShareLists] = useState<any[]>([])
   const [importResult, setImportResult] = useState<any>(null)
   const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const importRef = useRef<HTMLInputElement>(null)
 
   const showToast = (msg: string, type: 'ok'|'err' = 'ok') => {
-    setToast({msg, type})
-    setTimeout(() => setToast(null), 3000)
+    setToast({msg,type}); setTimeout(() => setToast(null), 3000)
   }
 
   useEffect(() => { loadInfluencers() }, [])
@@ -71,149 +71,152 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
     setLoading(false)
   }
 
-  function openAdd() {
-    setEditData(emptyInfluencer())
-    setShowForm(true)
+  async function loadShareLists() {
+    try {
+      const r = await fetch('/api/share')
+      const d = await r.json()
+      setShareLists(Array.isArray(d) ? d : [])
+    } catch {}
   }
 
+  useEffect(() => { if (tab === 'lists') loadShareLists() }, [tab])
+
+  function openAdd() { setEditData(emptyInfluencer()); setShowForm(true) }
   function openEdit(inf: any) {
-    setEditData({
-      ...emptyInfluencer(),
-      ...inf,
-      niche: inf.niche ?? [],
-      social_accounts: inf.social_accounts ?? [],
-      brand_names: inf.brand_names ?? [],
-      collab_types: inf.collab_types ?? [],
-      price_from: inf.price_from ?? '',
-      price_to: inf.price_to ?? '',
-      price_note: inf.price_note ?? 'غير شامل الضريبة',
+    setEditData({...emptyInfluencer(),...inf,
+      niche:inf.niche??[], social_accounts:inf.social_accounts??[],
+      brand_names:inf.brand_names??[], collab_types:inf.collab_types??[],
+      price_from:inf.price_from??'', price_to:inf.price_to??'',
+      price_note:inf.price_note??'غير شامل الضريبة',
     })
     setShowForm(true)
   }
 
   async function saveInfluencer() {
-    if (!editData.full_name.trim()) { showToast('الاسم مطلوب', 'err'); return }
+    if (!editData.full_name.trim()) { showToast('الاسم مطلوب','err'); return }
     setSaving(true)
     try {
-      const slug = editData.slug || editData.full_name.trim().replace(/\s+/g,'-').replace(/[^\w-]/g,'') + '-' + Date.now()
-      const payload = { ...editData, slug }
       const isNew = !editData.id
       const url = isNew ? '/api/influencers' : `/api/influencers/${editData.id}`
       const method = isNew ? 'POST' : 'PUT'
-      const r = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      const r = await fetch(url, { method, headers:{'Content-Type':'application/json'}, body: JSON.stringify(editData) })
       if (!r.ok) throw new Error(await r.text())
-      showToast(isNew ? 'تمت الإضافة بنجاح ✅' : 'تم التعديل بنجاح ✅')
-      setShowForm(false)
-      loadInfluencers()
-    } catch (e: any) { showToast('خطأ: ' + e.message, 'err') }
+      showToast(isNew ? 'تمت الإضافة ✅' : 'تم التعديل ✅')
+      setShowForm(false); loadInfluencers()
+    } catch (e: any) { showToast('خطأ: '+e.message,'err') }
     setSaving(false)
   }
 
   async function deleteInfluencer(id: string) {
     try {
-      await fetch(`/api/influencers/${id}`, { method: 'DELETE' })
-      showToast('تم الحذف')
-      setDeleteId(null)
-      loadInfluencers()
-    } catch { showToast('خطأ في الحذف', 'err') }
+      await fetch(`/api/influencers/${id}`, { method:'DELETE' })
+      showToast('تم الحذف'); setDeleteId(null); loadInfluencers()
+    } catch { showToast('خطأ في الحذف','err') }
   }
 
   async function uploadAvatar(file: File) {
     setUploadingAvatar(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('folder', 'avatars')
-      const r = await fetch('/api/upload', { method: 'POST', body: fd })
+      const fd = new FormData(); fd.append('file',file); fd.append('folder','avatars')
+      const r = await fetch('/api/upload', { method:'POST', body:fd })
       const d = await r.json()
-      if (d.url) { setEditData(p => ({...p, avatar_url: d.url})); showToast('تم رفع الصورة ✅') }
+      if (d.url) { setEditData((p:any) => ({...p,avatar_url:d.url})); showToast('تم رفع الصورة ✅') }
       else throw new Error(d.error)
-    } catch (e: any) { showToast('خطأ في الرفع: ' + e.message, 'err') }
+    } catch (e:any) { showToast('خطأ في الرفع: '+e.message,'err') }
     setUploadingAvatar(false)
   }
 
   async function createShareList() {
-    if (!listName.trim()) { showToast('اسم القائمة مطلوب', 'err'); return }
-    if (selectedIds.size === 0) { showToast('اختر مؤثراً على الأقل', 'err'); return }
+    if (!listName.trim()) { showToast('اسم القائمة مطلوب','err'); return }
+    if (selectedIds.size === 0) { showToast('اختر مؤثراً على الأقل','err'); return }
     try {
       const r = await fetch('/api/share', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          name: listName,
-          password: listPw || undefined,
-          influencer_ids: Array.from(selectedIds),
+          name:listName, password:listPw||undefined,
+          influencer_ids:Array.from(selectedIds),
+          expires_in_days:expiryDays,
         })
       })
       const d = await r.json()
       setShareLink(d.share_url ?? '')
       showToast('تم إنشاء الرابط ✅')
-    } catch { showToast('خطأ في إنشاء القائمة', 'err') }
+      loadShareLists()
+    } catch { showToast('خطأ في إنشاء القائمة','err') }
+  }
+
+  async function extendList(id: string, days: number) {
+    try {
+      await fetch('/api/share', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, expires_in_days:days}) })
+      showToast(`تم التمديد +${days} أيام ✅`); loadShareLists()
+    } catch { showToast('خطأ','err') }
+  }
+
+  async function toggleListActive(id: string, is_active: boolean) {
+    try {
+      await fetch('/api/share', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id, is_active}) })
+      showToast(is_active ? 'تم التفعيل ✅' : 'تم الإيقاف'); loadShareLists()
+    } catch { showToast('خطأ','err') }
   }
 
   async function handleImport(file: File) {
     setImporting(true)
-    const fd = new FormData()
-    fd.append('file', file)
+    const fd = new FormData(); fd.append('file',file)
     try {
-      const r = await fetch('/api/import', { method: 'POST', body: fd })
+      const r = await fetch('/api/import', { method:'POST', body:fd })
       const d = await r.json()
       setImportResult(d)
       if (d.success > 0) { loadInfluencers(); showToast(`تم استيراد ${d.success} مؤثر ✅`) }
-    } catch { showToast('خطأ في الاستيراد', 'err') }
+    } catch { showToast('خطأ في الاستيراد','err') }
     setImporting(false)
   }
 
-  function addSocialAccount() {
-    setEditData(p => ({...p, social_accounts: [...(p.social_accounts||[]), {platform:'instagram',handle:'',followers:0,avg_views:0,engagement_rate:0,profile_url:''}]}))
+  function addSocial() {
+    setEditData((p:any) => ({...p, social_accounts:[...(p.social_accounts??[]),
+      {platform:'instagram',handle:'',followers:0,avg_views:0,engagement_rate:0,profile_url:''}
+    ]}))
   }
-
-  function updateSocial(i: number, key: string, val: any) {
-    setEditData(p => { const arr = [...(p.social_accounts||[])]; arr[i] = {...arr[i],[key]:val}; return {...p,social_accounts:arr} })
+  function updateSocial(i:number, key:string, val:any) {
+    setEditData((p:any) => { const a=[...(p.social_accounts??[])]; a[i]={...a[i],[key]:val}; return {...p,social_accounts:a} })
   }
-
-  function removeSocial(i: number) {
-    setEditData(p => ({...p, social_accounts: (p.social_accounts||[]).filter((_:any,j:number)=>j!==i)}))
+  function removeSocial(i:number) {
+    setEditData((p:any) => ({...p, social_accounts:(p.social_accounts??[]).filter((_:any,j:number)=>j!==i)}))
   }
 
   const filtered = influencers.filter(i => !search || i.full_name?.includes(search) || i.handle?.includes(search))
 
   return (
-    <div className="min-h-screen bg-gray-50" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gray-50" dir={isAr?'rtl':'ltr'}>
 
-      {/* TOAST */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm shadow-lg ${toast.type==='ok' ? 'bg-gray-900 text-white' : 'bg-red-500 text-white'}`}>
-          {toast.type==='ok' ? <Check className="w-4 h-4"/> : <AlertCircle className="w-4 h-4"/>}
+        <div className={cn('fixed top-4 left-1/2 -translate-x-1/2 z-[999] flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm shadow-lg',
+          toast.type==='ok'?'bg-gray-900 text-white':'bg-red-500 text-white')}>
+          {toast.type==='ok'?<Check className="w-4 h-4"/>:<AlertCircle className="w-4 h-4"/>}
           {toast.msg}
         </div>
       )}
 
-      {/* NAV */}
       <nav className="bg-gray-900 text-white px-4 h-14 flex items-center gap-4 sticky top-0 z-50">
-        <Link href={`/${locale}`} className="flex items-center gap-1.5 text-gray-400 hover:text-white">
-          <ArrowRight className={`w-4 h-4 ${isAr?'':'rotate-180'}`}/>
+        <Link href={`/${locale}`} className="text-gray-400 hover:text-white">
+          <ArrowRight className={cn('w-4 h-4', isAr?'':'rotate-180')}/>
         </Link>
-        <div className="text-sm font-semibold">InfluenceX — لوحة التحكم</div>
-        <div className="ms-auto flex items-center gap-3 text-xs text-gray-400">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full"/>
-          <span>{filtered.length} مؤثر</span>
-        </div>
+        <span className="text-sm font-semibold">First Mover — لوحة التحكم</span>
+        <div className="ms-auto text-xs text-gray-400">{filtered.length} مؤثر</div>
       </nav>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
 
-        {/* TABS */}
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-6">
           {([['influencers','المؤثرون'],['lists','قوائم المشاركة'],['import','استيراد CSV']] as const).map(([id,label])=>(
             <button key={id} onClick={()=>setTab(id)}
-              className={`text-xs px-4 py-1.5 rounded-lg transition-colors ${tab===id?'bg-white text-gray-900 font-medium shadow-sm':'text-gray-500 hover:text-gray-700'}`}>
+              className={cn('text-xs px-4 py-1.5 rounded-lg transition-colors',
+                tab===id?'bg-white text-gray-900 font-medium shadow-sm':'text-gray-500 hover:text-gray-700')}>
               {label}
             </button>
           ))}
         </div>
 
-        {/* ===== TAB: INFLUENCERS ===== */}
+        {/* ===== المؤثرون ===== */}
         {tab==='influencers' && (
           <div>
             <div className="flex items-center gap-3 mb-4">
@@ -230,17 +233,23 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
             </div>
 
             {loading ? (
-              <div className="space-y-2">{Array.from({length:5}).map((_,i)=><div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
+              <div className="space-y-2">{Array.from({length:5}).map((_,i)=>(
+                <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse"/>
+              ))}</div>
             ) : (
               <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th className="w-10 px-4 py-3"><input type="checkbox" onChange={e=>{if(e.target.checked)setSelectedIds(new Set(filtered.map(i=>i.id)));else setSelectedIds(new Set())}}/></th>
+                      <th className="w-10 px-4 py-3">
+                        <input type="checkbox" onChange={e=>{
+                          if(e.target.checked) setSelectedIds(new Set(filtered.map(i=>i.id)))
+                          else setSelectedIds(new Set())
+                        }}/>
+                      </th>
                       <th className="text-start text-xs text-gray-400 font-medium px-4 py-3">المؤثر</th>
                       <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden md:table-cell">المجال</th>
                       <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden md:table-cell">المتابعون</th>
-                      <th className="text-start text-xs text-gray-400 font-medium px-4 py-3 hidden lg:table-cell">الدولة</th>
                       <th className="px-4 py-3"/>
                     </tr>
                   </thead>
@@ -269,23 +278,31 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                         <td className="px-4 py-3 hidden md:table-cell">
                           <div className="flex flex-wrap gap-1">
                             {(inf.niche??[]).slice(0,2).map((n:string)=>(
-                              <span key={n} className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">{NICHE_AR[n]??n}</span>
+                              <span key={n} className="text-xs bg-violet-50 text-violet-700 px-2 py-0.5 rounded-full">
+                                {NICHE_AR[n]??n}
+                              </span>
                             ))}
                           </div>
                         </td>
                         <td className="px-4 py-3 hidden md:table-cell text-sm text-gray-700 font-medium">
-                          {inf.total_followers ? (inf.total_followers>=1e6?(inf.total_followers/1e6).toFixed(1)+'M':inf.total_followers>=1000?(inf.total_followers/1000).toFixed(0)+'K':inf.total_followers) : '—'}
+                          {inf.total_followers ? (
+                            inf.total_followers>=1e6 ? (inf.total_followers/1e6).toFixed(1)+'M' :
+                            inf.total_followers>=1000 ? (inf.total_followers/1000).toFixed(0)+'K' :
+                            inf.total_followers
+                          ) : '—'}
                         </td>
-                        <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-500">{inf.country}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
-                            <Link href={`/${locale}/influencer/${inf.slug}`} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg">
+                            <Link href={`/${locale}/influencer/${inf.slug}`}
+                              className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg">
                               <Eye className="w-3.5 h-3.5"/>
                             </Link>
-                            <button onClick={()=>openEdit(inf)} className="p-1.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg">
+                            <button onClick={()=>openEdit(inf)}
+                              className="p-1.5 text-gray-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg">
                               <Pencil className="w-3.5 h-3.5"/>
                             </button>
-                            <button onClick={()=>setDeleteId(inf.id)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
+                            <button onClick={()=>setDeleteId(inf.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
                               <Trash2 className="w-3.5 h-3.5"/>
                             </button>
                           </div>
@@ -293,17 +310,18 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                       </tr>
                     ))}
                     {filtered.length===0 && (
-                      <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">لا توجد بيانات</td></tr>
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">لا توجد بيانات</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             )}
 
-            {selectedIds.size>0 && (
+            {selectedIds.size > 0 && (
               <div className="mt-4 flex items-center gap-3">
                 <span className="text-sm text-gray-600">{selectedIds.size} مؤثر محدد</span>
-                <button onClick={()=>setShareModal(true)} className="flex items-center gap-1.5 bg-violet-600 text-white text-sm px-4 py-2 rounded-xl">
+                <button onClick={()=>setTab('lists')}
+                  className="flex items-center gap-1.5 bg-violet-600 text-white text-sm px-4 py-2 rounded-xl">
                   <Share2 className="w-4 h-4"/> إنشاء قائمة مشاركة
                 </button>
               </div>
@@ -311,9 +329,9 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
           </div>
         )}
 
-        {/* ===== TAB: LISTS ===== */}
+        {/* ===== قوائم المشاركة ===== */}
         {tab==='lists' && (
-          <div className="max-w-lg">
+          <div className="space-y-4 max-w-2xl">
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-4">إنشاء قائمة مشاركة جديدة</h2>
               <div className="space-y-3">
@@ -325,13 +343,33 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">كلمة مرور (اختياري)</label>
-                  <input value={listPw} onChange={e=>setListPw(e.target.value)} type="password"
-                    placeholder="اتركها فارغة إذا تريد الوصول المفتوح"
+                  <input value={listPw} onChange={e=>setListPw(e.target.value)}
+                    placeholder="اتركها فارغة للوصول المفتوح"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">المؤثرون ({selectedIds.size} محدد)</label>
-                  <p className="text-xs text-gray-400">اذهب لتبويب المؤثرين وحدد المؤثرين أولاً</p>
+                  <label className="text-xs text-gray-500 mb-2 block">مدة الصلاحية</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[1,3,7,14,30].map(d => (
+                      <button key={d} onClick={()=>setExpiryDays(d)}
+                        className={cn('text-xs px-3 py-1.5 rounded-full border transition-colors',
+                          expiryDays===d?'bg-violet-500 text-white border-violet-500':'border-gray-200 text-gray-500')}>
+                        {d} {d===1?'يوم':'أيام'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">المؤثرون المحددون</label>
+                  {selectedIds.size === 0 ? (
+                    <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+                      اذهب لتبويب المؤثرين وحدد المؤثرين أولاً
+                    </p>
+                  ) : (
+                    <p className="text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
+                      ✓ {selectedIds.size} مؤثر محدد
+                    </p>
+                  )}
                 </div>
                 <button onClick={createShareList}
                   className="w-full bg-violet-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-violet-700">
@@ -339,62 +377,99 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                 </button>
                 {shareLink && (
                   <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-xs text-gray-500 mb-1">الرابط جاهز:</p>
+                    <p className="text-xs text-gray-500 mb-2">الرابط جاهز:</p>
                     <div className="flex items-center gap-2">
-                      <code className="text-xs bg-white border border-gray-200 rounded px-2 py-1 flex-1 truncate">{shareLink}</code>
+                      <code className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1.5 flex-1 truncate">{shareLink}</code>
                       <button onClick={()=>{navigator.clipboard.writeText(shareLink);showToast('تم نسخ الرابط ✅')}}
-                        className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg">نسخ</button>
+                        className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg whitespace-nowrap">نسخ</button>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+
+            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700">الروابط السابقة</span>
+                <button onClick={loadShareLists} className="text-xs text-violet-600">تحديث</button>
+              </div>
+              {shareLists.length === 0 ? (
+                <div className="px-5 py-8 text-center text-sm text-gray-400">لا توجد قوائم بعد</div>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {shareLists.map((sl: any) => {
+                    const daysLeft = sl.expires_at ? Math.ceil((new Date(sl.expires_at).getTime()-Date.now())/86400000) : null
+                    const expired = daysLeft !== null && daysLeft <= 0
+                    const shareUrl = `${typeof window!=='undefined'?window.location.origin:''}/share/${sl.token}`
+                    return (
+                      <div key={sl.id} className="px-5 py-3 flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900">{sl.name}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={cn('text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1',
+                              expired?'bg-red-50 text-red-600':
+                              daysLeft!==null&&daysLeft<=2?'bg-amber-50 text-amber-600':
+                              'bg-emerald-50 text-emerald-600')}>
+                              <Clock className="w-2.5 h-2.5"/>
+                              {expired?'منتهي':daysLeft===0?'ينتهي اليوم':daysLeft!==null?`${daysLeft} يوم`:''}
+                            </span>
+                            {sl.password_hash && <span className="text-xs text-gray-400">🔒</span>}
+                            {!sl.is_active && <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">موقوف</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={()=>{navigator.clipboard.writeText(shareUrl);showToast('تم نسخ الرابط ✅')}}
+                            className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg">
+                            <Copy className="w-3.5 h-3.5"/>
+                          </button>
+                          <button onClick={()=>extendList(sl.id,7)}
+                            className="text-xs border border-violet-200 text-violet-600 px-2 py-1 rounded-lg hover:bg-violet-50 whitespace-nowrap">
+                            +7 أيام
+                          </button>
+                          <button onClick={()=>toggleListActive(sl.id,!sl.is_active)}
+                            className={cn('text-xs px-2 py-1 rounded-lg border whitespace-nowrap',
+                              sl.is_active?'border-red-200 text-red-500 hover:bg-red-50':'border-emerald-200 text-emerald-600 hover:bg-emerald-50')}>
+                            {sl.is_active?'إيقاف':'تفعيل'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* ===== TAB: IMPORT ===== */}
+        {/* ===== استيراد CSV ===== */}
         {tab==='import' && (
           <div className="max-w-lg">
             <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
               <h2 className="text-sm font-semibold text-gray-700">استيراد مؤثرين من CSV</h2>
-              <div
-                onClick={()=>importRef.current?.click()}
-                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-violet-300 transition-colors">
+              <div onClick={()=>importRef.current?.click()}
+                className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-violet-300">
                 {importing ? (
                   <div className="text-sm text-gray-500">جارٍ الاستيراد...</div>
                 ) : (
                   <>
                     <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2"/>
                     <p className="text-sm text-gray-500">اضغط لاختيار ملف CSV</p>
-                    <p className="text-xs text-gray-400 mt-1">.csv فقط</p>
                   </>
                 )}
               </div>
               <input ref={importRef} type="file" accept=".csv" className="hidden"
                 onChange={e=>{ if(e.target.files?.[0]) handleImport(e.target.files[0]) }}/>
-
               {importResult && (
                 <div className="bg-gray-50 rounded-xl p-3 text-sm">
                   <p className="text-emerald-600">✅ تم استيراد {importResult.success} مؤثر</p>
-                  {importResult.skipped>0 && <p className="text-gray-500">تم تخطي {importResult.skipped} سطر</p>}
-                  {importResult.errors?.slice(0,3).map((e:string,i:number)=>(
-                    <p key={i} className="text-red-500 text-xs mt-1">{e}</p>
-                  ))}
                 </div>
               )}
-
-              <div className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-                <strong>الأعمدة المطلوبة:</strong><br/>
-                name, handle, country, city, gender, niche<br/>
-                <strong>مثال للمجال:</strong> lifestyle;fashion
-              </div>
-
               <a href="#" onClick={e=>{
                 e.preventDefault()
-                const csv = 'name,handle,country,city,gender,niche\nسارة المثال,@sara,السعودية,الرياض,female,lifestyle;fashion'
-                const b = new Blob([csv],{type:'text/csv'})
-                const u = URL.createObjectURL(b)
-                const a = document.createElement('a'); a.href=u; a.download='template.csv'; a.click()
+                const csv='name,handle,country,city,gender,niche\nسارة المثال,@sara,السعودية,الرياض,female,media'
+                const b=new Blob([csv],{type:'text/csv'})
+                const u=URL.createObjectURL(b)
+                const a=document.createElement('a');a.href=u;a.download='template.csv';a.click()
               }} className="flex items-center gap-1.5 text-xs text-violet-600 hover:underline">
                 <Download className="w-3.5 h-3.5"/> تحميل نموذج CSV
               </a>
@@ -403,7 +478,7 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
         )}
       </div>
 
-      {/* ===== FORM MODAL ===== */}
+      {/* ===== فورم الإضافة/التعديل ===== */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[200] flex items-start justify-center p-4 overflow-y-auto" dir={isAr?'rtl':'ltr'}>
           <div className="bg-white rounded-2xl w-full max-w-2xl my-4">
@@ -415,7 +490,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                 <X className="w-5 h-5"/>
               </button>
             </div>
-
             <div className="p-5 space-y-5">
 
               {/* صورة */}
@@ -430,12 +504,12 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                 <div>
                   <button onClick={()=>fileRef.current?.click()}
                     className="flex items-center gap-1.5 text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
-                    <ImageIcon className="w-3.5 h-3.5"/> {uploadingAvatar ? 'جارٍ الرفع...' : 'رفع صورة'}
+                    <ImageIcon className="w-3.5 h-3.5"/> {uploadingAvatar?'جارٍ الرفع...':'رفع صورة'}
                   </button>
                   <input ref={fileRef} type="file" accept="image/*" className="hidden"
                     onChange={e=>{ if(e.target.files?.[0]) uploadAvatar(e.target.files[0]) }}/>
                   {editData.avatar_url && (
-                    <button onClick={()=>setEditData(p=>({...p,avatar_url:''}))}
+                    <button onClick={()=>setEditData((p:any)=>({...p,avatar_url:''}))}
                       className="text-xs text-red-500 mt-1 block">حذف الصورة</button>
                   )}
                 </div>
@@ -445,28 +519,28 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">الاسم الكامل *</label>
-                  <input value={editData.full_name} onChange={e=>setEditData(p=>({...p,full_name:e.target.value}))}
+                  <input value={editData.full_name} onChange={e=>setEditData((p:any)=>({...p,full_name:e.target.value}))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">المعرف (Handle)</label>
-                  <input value={editData.handle} onChange={e=>setEditData(p=>({...p,handle:e.target.value}))}
+                  <label className="text-xs text-gray-500 mb-1 block">المعرف</label>
+                  <input value={editData.handle} onChange={e=>setEditData((p:any)=>({...p,handle:e.target.value}))}
                     placeholder="@username"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">الدولة</label>
-                  <input value={editData.country} onChange={e=>setEditData(p=>({...p,country:e.target.value}))}
+                  <input value={editData.country} onChange={e=>setEditData((p:any)=>({...p,country:e.target.value}))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">المدينة</label>
-                  <input value={editData.city} onChange={e=>setEditData(p=>({...p,city:e.target.value}))}
+                  <input value={editData.city} onChange={e=>setEditData((p:any)=>({...p,city:e.target.value}))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">الجنس</label>
-                  <select value={editData.gender} onChange={e=>setEditData(p=>({...p,gender:e.target.value}))}
+                  <select value={editData.gender} onChange={e=>setEditData((p:any)=>({...p,gender:e.target.value}))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400">
                     <option value="female">أنثى</option>
                     <option value="male">ذكر</option>
@@ -474,11 +548,11 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                 </div>
                 <div className="flex items-center gap-4 pt-4">
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={editData.is_verified} onChange={e=>setEditData(p=>({...p,is_verified:e.target.checked}))}/>
+                    <input type="checkbox" checked={editData.is_verified} onChange={e=>setEditData((p:any)=>({...p,is_verified:e.target.checked}))}/>
                     موثّق
                   </label>
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={editData.is_featured} onChange={e=>setEditData(p=>({...p,is_featured:e.target.checked}))}/>
+                    <input type="checkbox" checked={editData.is_featured} onChange={e=>setEditData((p:any)=>({...p,is_featured:e.target.checked}))}/>
                     مميز
                   </label>
                 </div>
@@ -487,7 +561,7 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
               {/* النبذة */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">النبذة التعريفية</label>
-                <textarea value={editData.bio} onChange={e=>setEditData(p=>({...p,bio:e.target.value}))}
+                <textarea value={editData.bio} onChange={e=>setEditData((p:any)=>({...p,bio:e.target.value}))}
                   rows={3} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400 resize-none"/>
               </div>
 
@@ -497,24 +571,25 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                 <div className="flex flex-wrap gap-2">
                   {NICHES.map(n => (
                     <button key={n} type="button"
-                      onClick={()=>setEditData(p=>({...p,niche:p.niche.includes(n)?p.niche.filter(x=>x!==n):[...p.niche,n]}))}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${editData.niche.includes(n)?'bg-violet-50 border-violet-200 text-violet-700':'border-gray-200 text-gray-500'}`}>
+                      onClick={()=>setEditData((p:any)=>({...p,niche:p.niche.includes(n)?p.niche.filter((x:string)=>x!==n):[...p.niche,n]}))}
+                      className={cn('text-xs px-3 py-1.5 rounded-full border transition-colors',
+                        editData.niche.includes(n)?'bg-violet-50 border-violet-200 text-violet-700':'border-gray-200 text-gray-500')}>
                       {NICHE_AR[n]}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* المنصات الاجتماعية */}
+              {/* المنصات */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs text-gray-500">المنصات الاجتماعية</label>
-                  <button onClick={addSocialAccount} className="text-xs text-violet-600 flex items-center gap-1">
+                  <button onClick={addSocial} className="text-xs text-violet-600 flex items-center gap-1">
                     <Plus className="w-3 h-3"/> إضافة منصة
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {(editData.social_accounts||[]).map((acc:any, i:number) => (
+                  {(editData.social_accounts??[]).map((acc:any, i:number) => (
                     <div key={i} className="border border-gray-100 rounded-xl p-3 space-y-2">
                       <div className="flex items-center gap-2">
                         <select value={acc.platform} onChange={e=>updateSocial(i,'platform',e.target.value)}
@@ -552,17 +627,15 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
 
               {/* السعر */}
               <div>
-                <label className="text-xs text-gray-500 mb-2 block flex items-center gap-1">
-                  <DollarSign className="w-3 h-3"/> السعر التقريبي (ريال سعودي)
-                </label>
+                <label className="text-xs text-gray-500 mb-2 block">السعر التقريبي (ريال سعودي)</label>
                 <div className="grid grid-cols-3 gap-2">
-                  <input value={editData.price_from} onChange={e=>setEditData(p=>({...p,price_from:e.target.value}))}
+                  <input value={editData.price_from} onChange={e=>setEditData((p:any)=>({...p,price_from:e.target.value}))}
                     type="number" placeholder="من"
                     className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
-                  <input value={editData.price_to} onChange={e=>setEditData(p=>({...p,price_to:e.target.value}))}
+                  <input value={editData.price_to} onChange={e=>setEditData((p:any)=>({...p,price_to:e.target.value}))}
                     type="number" placeholder="إلى"
                     className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
-                  <select value={editData.price_note} onChange={e=>setEditData(p=>({...p,price_note:e.target.value}))}
+                  <select value={editData.price_note} onChange={e=>setEditData((p:any)=>({...p,price_note:e.target.value}))}
                     className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400">
                     <option value="غير شامل الضريبة">غير شامل الضريبة</option>
                     <option value="شامل الضريبة">شامل الضريبة</option>
@@ -573,8 +646,8 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
               {/* العلامات التجارية */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">علامات تجارية سابقة (مفصولة بفاصلة)</label>
-                <input value={(editData.brand_names||[]).join(',')}
-                  onChange={e=>setEditData(p=>({...p,brand_names:e.target.value.split(',').map(x=>x.trim()).filter(Boolean)}))}
+                <input value={(editData.brand_names??[]).join(',')}
+                  onChange={e=>setEditData((p:any)=>({...p,brand_names:e.target.value.split(',').map((x:string)=>x.trim()).filter(Boolean)}))}
                   placeholder="Samsung, Apple, STC"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
               </div>
@@ -582,29 +655,29 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
               {/* أنواع التعاون */}
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">أنواع التعاون (مفصولة بفاصلة)</label>
-                <input value={(editData.collab_types||[]).join(',')}
-                  onChange={e=>setEditData(p=>({...p,collab_types:e.target.value.split(',').map(x=>x.trim()).filter(Boolean)}))}
+                <input value={(editData.collab_types??[]).join(',')}
+                  onChange={e=>setEditData((p:any)=>({...p,collab_types:e.target.value.split(',').map((x:string)=>x.trim()).filter(Boolean)}))}
                   placeholder="منشور ممول, ستوري, ريلز"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
               </div>
 
             </div>
-
             <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100">
-              <button onClick={()=>setShowForm(false)} className="text-sm text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50">
+              <button onClick={()=>setShowForm(false)}
+                className="text-sm text-gray-500 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50">
                 إلغاء
               </button>
               <button onClick={saveInfluencer} disabled={saving}
                 className="flex items-center gap-1.5 bg-violet-600 text-white text-sm px-5 py-2 rounded-xl hover:bg-violet-700 disabled:opacity-50">
                 <Save className="w-4 h-4"/>
-                {saving ? 'جارٍ الحفظ...' : 'حفظ'}
+                {saving?'جارٍ الحفظ...':'حفظ'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE CONFIRM */}
+      {/* تأكيد الحذف */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
@@ -612,13 +685,14 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
             <h3 className="text-base font-semibold text-gray-900 mb-1">تأكيد الحذف</h3>
             <p className="text-sm text-gray-500 mb-4">هل أنت متأكد؟ لا يمكن التراجع.</p>
             <div className="flex gap-2 justify-center">
-              <button onClick={()=>setDeleteId(null)} className="px-4 py-2 border border-gray-200 rounded-xl text-sm">إلغاء</button>
-              <button onClick={()=>deleteInfluencer(deleteId)} className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm">حذف</button>
+              <button onClick={()=>setDeleteId(null)}
+                className="px-4 py-2 border border-gray-200 rounded-xl text-sm">إلغاء</button>
+              <button onClick={()=>deleteInfluencer(deleteId)}
+                className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm">حذف</button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   )
 }
