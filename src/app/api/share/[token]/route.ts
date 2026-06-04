@@ -26,11 +26,11 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     const { data: items } = await supabase
       .from('client_list_influencers')
       .select('influencer_id')
-      .eq('client_list_id', list.id)
+      .eq('list_id', list.id)  // ✅ كان client_list_id
 
     const ids = (items ?? []).map((i: any) => i.influencer_id)
-    let influencers: any[] = []
 
+    let influencers: any[] = []
     if (ids.length > 0) {
       const { data: infs } = await supabase
         .from('influencer_stats_summary')
