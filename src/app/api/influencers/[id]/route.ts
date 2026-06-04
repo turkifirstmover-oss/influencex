@@ -25,7 +25,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   try {
     const body = await req.json()
     const supabase = createAdminClient()
-    const { social_accounts, id: _id, ...infData } = body
+
+    // إزالة الأعمدة المحسوبة من الـ View + social_accounts
+    const {
+      social_accounts,
+      id: _id,
+      total_followers,
+      avg_views,
+      avg_engagement,
+      platform_count,
+      ...infData
+    } = body
 
     const { data, error } = await supabase
       .from('influencers')
