@@ -8,10 +8,10 @@ import {
   Link2, Image as ImageIcon, DollarSign, ChevronDown
 } from 'lucide-react'
 
-const NICHES = ['lifestyle','fashion','tech','auto','sports','food','travel','business']
-const NICHE_AR: Record<string,string> = {
-  lifestyle:'لايف ستايل', fashion:'أزياء', tech:'تقنية',
-  auto:'سيارات', sports:'رياضة', food:'طعام', travel:'سفر', business:'أعمال'
+const NICHES = ['news','media','business','marketing','tech','ugc']
+  const NICHE_AR: Record<string,string> = {
+  news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
+  marketing:'تسويق', tech:'تقني', ugc:'UGC'
 }
 const PLATFORMS = ['instagram','tiktok','snapchat','youtube','twitter']
 const PLATFORM_LABELS: Record<string,string> = {
