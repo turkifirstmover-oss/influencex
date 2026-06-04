@@ -6,16 +6,35 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const { id } = params
   try {
     const supabase = createAdminClient()
-    const { data, error } = await supabase
+
+    // أولاً: جرّب البحث بالـ slug
+    const { data: bySlug } = await supabase
       .from('influencers')
       .select(`*, social_accounts(*), media_items(*), brand_collaborations(*)`)
-      .or(`id.eq.${id},slug.eq.${id}`)
+      .eq('slug', id)
       .eq('is_active', true)
       .maybeSingle()
 
-    if (!error && data) return NextResponse.json(data)
-  } catch {}
+    if (bySlug) return NextResponse.json(bySlug)
 
+    // ثانياً: جرّب البحث بالـ UUID (فقط لو يبدو UUID)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    if (isUUID) {
+      const { data: byId } = await supabase
+        .from('influencers')
+        .select(`*, social_accounts(*), media_items(*), brand_collaborations(*)`)
+        .eq('id', id)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (byId) return NextResponse.json(byId)
+    }
+
+  } catch (e) {
+    console.error('GET influencer error:', e)
+  }
+
+  // fallback للبيانات التجريبية
   const inf = MOCK_INFLUENCERS.find(i => i.id === id || i.slug === id)
   if (!inf) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(inf)
@@ -25,15 +44,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   try {
     const body = await req.json()
     const supabase = createAdminClient()
-
-    // إزالة الأعمدة المحسوبة من الـ View + social_accounts
     const {
-      social_accounts,
-      id: _id,
-      total_followers,
-      avg_views,
-      avg_engagement,
-      platform_count,
+      social_accounts, id: _id,
+      total_followers, avg_views, avg_engagement, platform_count,
       ...infData
     } = body
 
