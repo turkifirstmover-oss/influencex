@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     if (influencer_ids?.length > 0) {
       const rows = influencer_ids.map((id: string) => ({
-        client_list_id: list.id,
+        list_id: list.id,
         influencer_id: id,
       }))
       const { error: insertError } = await supabase
