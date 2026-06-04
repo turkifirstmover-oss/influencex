@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { createAdminClient } from '@/lib/supabase'
 import crypto from 'crypto'
 
 export async function GET(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
     if (influencer_ids?.length > 0) {
       const rows = influencer_ids.map((id: string) => ({
-        list_id: list.id,        // ✅ كان client_list_id — الآن list_id
+        list_id: list.id,
         influencer_id: id,
       }))
       const { error: insertError } = await supabase
