@@ -21,7 +21,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { name, password, influencer_ids, expires_in_days = 7 } = body
     const supabase = createAdminClient()
-
     const token = crypto.randomBytes(24).toString('hex')
     const expires_at = new Date()
     expires_at.setDate(expires_at.getDate() + Number(expires_in_days))
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .single()
-
     if (error) throw error
 
     if (influencer_ids?.length > 0) {
@@ -45,7 +43,11 @@ export async function POST(req: NextRequest) {
         client_list_id: list.id,
         influencer_id: id,
       }))
-      await supabase.from('client_list_influencers').insert(rows)
+      const { error: insertError } = await supabase
+        .from('client_list_influencers')
+        .insert(rows)
+
+      if (insertError) throw new Error(`فشل حفظ المؤثرين: ${insertError.message}`)
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://first-mover.netlify.app'
@@ -60,7 +62,6 @@ export async function PUT(req: NextRequest) {
     const body = await req.json()
     const { id, expires_in_days, is_active } = body
     const supabase = createAdminClient()
-
     const updateData: any = {}
     if (is_active !== undefined) updateData.is_active = is_active
     if (expires_in_days) {
@@ -68,14 +69,12 @@ export async function PUT(req: NextRequest) {
       expires_at.setDate(expires_at.getDate() + Number(expires_in_days))
       updateData.expires_at = expires_at.toISOString()
     }
-
     const { data, error } = await supabase
       .from('client_lists')
       .update(updateData)
       .eq('id', id)
       .select()
       .single()
-
     if (error) throw error
     return NextResponse.json(data)
   } catch (e: any) {
