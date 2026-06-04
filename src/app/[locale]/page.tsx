@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { Search, X, Users, Eye, TrendingUp, Briefcase, BadgeCheck, LayoutDashboard, Moon, Sun, MapPin } from 'lucide-react'
-import { MOCK_INFLUENCERS } from '@/lib/data'
 import { formatNumber, cn } from '@/lib/utils'
 
 const NICHES = [
@@ -42,27 +41,34 @@ export default function HomePage({ params }: { params: { locale: string } }) {
   const { locale } = params
   const isAr = locale === 'ar'
 
-  const [search, setSearch]       = useState('')
-  const [niche, setNiche]         = useState('all')
-  const [platform, setPlatform]   = useState('all')
-  const [gender, setGender]       = useState<'all'|'male'|'female'>('all')
-  const [verified, setVerified]   = useState(false)
-  const [dark, setDark]           = useState(false)
+  const [search, setSearch]           = useState('')
+  const [niche, setNiche]             = useState('all')
+  const [platform, setPlatform]       = useState('all')
+  const [gender, setGender]           = useState<'all'|'male'|'female'>('all')
+  const [verified, setVerified]       = useState(false)
+  const [dark, setDark]               = useState(false)
+  const [influencers, setInfluencers] = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
 
-  const totalFollowers = MOCK_INFLUENCERS.reduce((s, i) => s + (i.total_followers ?? 0), 0)
+  useEffect(() => {
+    fetch('/api/influencers?per_page=100')
+      .then(r => r.json())
+      .then(d => { setInfluencers(d.data ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const totalFollowers = influencers.reduce((s, i) => s + (i.total_followers ?? 0), 0)
 
   const filtered = useMemo(() => {
-    return MOCK_INFLUENCERS.filter(inf => {
-      if (search && !inf.full_name.includes(search) && !inf.handle?.includes(search)) return false
-      if (niche !== 'all' && !inf.niche.includes(niche as any)) return false
-      if (platform !== 'all' && !inf.social_accounts?.some(s => s.platform === platform)) return false
+    return influencers.filter(inf => {
+      if (search && !inf.full_name?.includes(search) && !inf.handle?.includes(search)) return false
+      if (niche !== 'all' && !inf.niche?.includes(niche)) return false
+      if (platform !== 'all' && !inf.social_accounts?.some((s: any) => s.platform === platform)) return false
       if (gender !== 'all' && inf.gender !== gender) return false
       if (verified && !inf.is_verified) return false
       return true
     })
-  }, [search, niche, platform, gender, verified])
-
-  const dm = (light: string, darkCls: string) => dark ? darkCls : light
+  }, [influencers, search, niche, platform, gender, verified])
 
   return (
     <div className={cn('min-h-screen transition-colors duration-200', dark ? 'bg-[#0d0d0d]' : 'bg-gray-50')} dir={isAr ? 'rtl' : 'ltr'}>
@@ -110,10 +116,10 @@ export default function HomePage({ params }: { params: { locale: string } }) {
       <div className={cn('border-b px-4 py-3', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')}>
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { icon: Users,      label: isAr ? 'إجمالي المؤثرين' : 'Influencers',  value: MOCK_INFLUENCERS.length.toString() },
-            { icon: Eye,        label: isAr ? 'إجمالي المتابعين' : 'Followers',   value: formatNumber(totalFollowers) },
-            { icon: TrendingUp, label: isAr ? 'متوسط التفاعل' : 'Avg Engagement', value: '5.8%' },
-            { icon: Briefcase,  label: isAr ? 'علامات تجارية' : 'Brands',        value: '150+' },
+            { icon: Users,      label: isAr ? 'إجمالي المؤثرين' : 'Influencers',   value: influencers.length.toString() },
+            { icon: Eye,        label: isAr ? 'إجمالي المتابعين' : 'Followers',    value: formatNumber(totalFollowers) },
+            { icon: TrendingUp, label: isAr ? 'متوسط التفاعل' : 'Avg Engagement',  value: '5.8%' },
+            { icon: Briefcase,  label: isAr ? 'علامات تجارية' : 'Brands',          value: '150+' },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className={cn('rounded-xl p-3', dark ? 'bg-[#1a1a1a]' : 'bg-gray-50')}>
               <div className={cn('flex items-center gap-1.5 text-xs mb-1', dark ? 'text-gray-500' : 'text-gray-400')}>
@@ -128,11 +134,9 @@ export default function HomePage({ params }: { params: { locale: string } }) {
       {/* FILTERS */}
       <div className={cn('border-b px-4 py-4 sticky top-14 z-40', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')}>
         <div className="max-w-5xl mx-auto space-y-3">
-
-          {/* رأس */}
           <div className="flex items-center justify-between">
             <span className={cn('text-xs', dark ? 'text-gray-500' : 'text-gray-400')}>
-              {filtered.length} {isAr ? 'مؤثر' : 'influencers'}
+              {loading ? '...' : `${filtered.length} ${isAr ? 'مؤثر' : 'influencers'}`}
             </span>
             {(search || niche !== 'all' || platform !== 'all' || gender !== 'all' || verified) && (
               <button onClick={() => { setSearch(''); setNiche('all'); setPlatform('all'); setGender('all'); setVerified(false) }}
@@ -213,7 +217,13 @@ export default function HomePage({ params }: { params: { locale: string } }) {
 
       {/* GRID */}
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({length: 6}).map((_, i) => (
+              <div key={i} className={cn('rounded-2xl border p-4 h-52 animate-pulse', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Search className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">{isAr ? 'لا توجد نتائج' : 'No results'}</p>
@@ -223,22 +233,25 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             {filtered.map(inf => {
               const av = getAvColor(inf.full_name)
               const engHigh = (inf.avg_engagement ?? 0) >= 5
+              const nicheLabel: Record<string,string> = {
+                news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
+                marketing:'تسويق', tech:'تقني', ugc:'UGC',
+                lifestyle:'لايف ستايل', fashion:'أزياء', auto:'سيارات',
+                sports:'رياضة', food:'طعام', travel:'سفر'
+              }
               return (
-                <div key={inf.id} className={cn('relative rounded-2xl border p-4 flex flex-col gap-3 transition-colors', dark ? 'bg-[#111] border-[#2a2a2a] hover:border-[#3a3a3a]' : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm')}>
-
-                  {/* badge تفاعل */}
+                <div key={inf.id} className={cn('relative rounded-2xl border p-4 flex flex-col gap-3 transition-colors', dark ? 'bg-[#111] border-[#2a2a2a] hover:border-[#3a3a3a]' : 'bg-white border-gray-100 hover:shadow-sm')}>
                   <span className={cn('absolute top-3 left-3 text-[10px] px-2 py-0.5 rounded-full font-medium',
                     engHigh ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
-                    {(inf.avg_engagement ?? 0).toFixed(1)}%
+                    {Number(inf.avg_engagement ?? 0).toFixed(1)}%
                   </span>
 
-                  {/* الهيدر */}
                   <div className="flex items-center gap-3">
                     {inf.avatar_url ? (
                       <img src={inf.avatar_url} alt={inf.full_name} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
                     ) : (
                       <div className={cn('w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
-                        {inf.full_name.slice(0, 2)}
+                        {inf.full_name?.slice(0, 2)}
                       </div>
                     )}
                     <div className="min-w-0">
@@ -247,12 +260,11 @@ export default function HomePage({ params }: { params: { locale: string } }) {
                         {inf.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
                       </div>
                       <div className={cn('text-xs mt-0.5', dark ? 'text-gray-500' : 'text-gray-400')}>
-                        {(inf.niche[0] === 'lifestyle' ? 'لايف ستايل' : inf.niche[0] === 'tech' ? 'تقني' : inf.niche[0] === 'business' ? 'ريادة الأعمال' : inf.niche[0] === 'food' ? 'طعام' : inf.niche[0] === 'fashion' ? 'أزياء' : inf.niche[0] === 'auto' ? 'سيارات' : inf.niche[0] === 'travel' ? 'سفر' : inf.niche[0] === 'sports' ? 'رياضة' : inf.niche[0])} · {inf.city}
+                        {nicheLabel[inf.niche?.[0]] ?? inf.niche?.[0]} · {inf.city}
                       </div>
                     </div>
                   </div>
 
-                  {/* الإحصائيات */}
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: isAr ? 'المتابعون' : 'Followers', value: formatNumber(inf.total_followers ?? 0) },
@@ -265,17 +277,15 @@ export default function HomePage({ params }: { params: { locale: string } }) {
                     ))}
                   </div>
 
-                  {/* المنصات نصياً */}
                   <div className="flex gap-1.5 flex-wrap">
-                    {inf.social_accounts?.map(acc => (
-                      <span key={acc.id} className={cn('text-[10px] px-2 py-1 rounded border font-medium',
+                    {inf.social_accounts?.map((acc: any) => (
+                      <span key={acc.id ?? acc.platform} className={cn('text-[10px] px-2 py-1 rounded border font-medium',
                         dark ? 'bg-[#1a1a1a] border-[#2a2a2a] text-gray-400' : 'bg-gray-50 border-gray-100 text-gray-500')}>
                         {acc.platform === 'instagram' ? 'Instagram' : acc.platform === 'tiktok' ? 'TikTok' : acc.platform === 'snapchat' ? 'Snapchat' : acc.platform === 'youtube' ? 'YouTube' : acc.platform === 'twitter' ? 'X' : acc.platform}
                       </span>
                     ))}
                   </div>
 
-                  {/* الفوتر */}
                   <div className={cn('flex items-center justify-between pt-2 border-t mt-auto', dark ? 'border-[#2a2a2a]' : 'border-gray-100')}>
                     <span className={cn('flex items-center gap-1 text-xs', dark ? 'text-gray-500' : 'text-gray-400')}>
                       <MapPin className="w-3 h-3" /> {inf.city ?? inf.country}
