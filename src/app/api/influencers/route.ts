@@ -4,62 +4,49 @@ import { MOCK_INFLUENCERS } from '@/lib/data'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
-  const search   = searchParams.get('search') ?? ''
-  const niches   = searchParams.getAll('niche')
-  const platform = searchParams.get('platform') ?? ''
-  const country  = searchParams.get('country') ?? ''
-  const gender   = searchParams.get('gender') ?? ''
-  const page     = Number(searchParams.get('page') ?? 1)
-  const perPage  = Number(searchParams.get('per_page') ?? 100)
+  const search  = searchParams.get('search') ?? ''
+  const page    = Number(searchParams.get('page') ?? 1)
+  const perPage = Number(searchParams.get('per_page') ?? 100)
 
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    try {
-      const supabase = createAdminClient()
-      let query = supabase
-        .from('influencer_stats_summary')
-        .select('*', { count: 'exact' })
-        .eq('is_active', true)
-        .range((page - 1) * perPage, page * perPage - 1)
+  try {
+    const supabase = createAdminClient()
+    let query = supabase
+      .from('influencer_stats_summary')
+      .select('*', { count: 'exact' })
+      .eq('is_active', true)
+      .range((page - 1) * perPage, page * perPage - 1)
 
-      if (search) query = query.ilike('full_name', `%${search}%`)
-      if (niches.length) query = query.overlaps('niche', niches)
-      if (country) query = query.eq('country', country)
-      if (gender) query = query.eq('gender', gender)
+    if (search) query = query.ilike('full_name', `%${search}%`)
 
-      const { data, count, error } = await query
-      if (!error) {
-        // جلب social_accounts لكل مؤثر
-        const ids = (data ?? []).map((i: any) => i.id)
-        let socials: any[] = []
-        if (ids.length > 0) {
-          const { data: sa } = await supabase
-            .from('social_accounts')
-            .select('*')
-            .in('influencer_id', ids)
-          socials = sa ?? []
-        }
-        const result = (data ?? []).map((inf: any) => ({
-          ...inf,
-          social_accounts: socials.filter((s: any) => s.influencer_id === inf.id),
-        }))
-        return NextResponse.json({ data: result, count, page, per_page: perPage })
-      }
-    } catch {}
+    const { data, count, error } = await query
+    if (error) throw error
+
+    const ids = (data ?? []).map((i: any) => i.id)
+    let socials: any[] = []
+    if (ids.length > 0) {
+      const { data: sa } = await supabase
+        .from('social_accounts')
+        .select('*')
+        .in('influencer_id', ids)
+      socials = sa ?? []
+    }
+
+    const result = (data ?? []).map((inf: any) => ({
+      ...inf,
+      social_accounts: socials.filter((s: any) => s.influencer_id === inf.id),
+    }))
+    return NextResponse.json({ data: result, count, page, per_page: perPage })
+  } catch {
+    const results = MOCK_INFLUENCERS
+    return NextResponse.json({ data: results, count: results.length, page: 1, per_page: perPage })
   }
-
-  // fallback mock
-  let results = [...MOCK_INFLUENCERS]
-  if (search) results = results.filter(i => i.full_name.includes(search) || i.handle?.includes(search))
-  return NextResponse.json({ data: results, count: results.length, page: 1, per_page: perPage })
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const supabase = createAdminClient()
-
-    // فصل social_accounts عن بيانات المؤثر
-    const { social_accounts, ...infData } = body
+    const { social_accounts, id: _id, ...infData } = body
 
     const slug = infData.slug ||
       (infData.full_name as string).trim()
@@ -67,7 +54,6 @@ export async function POST(req: NextRequest) {
         .replace(/[^\w\u0600-\u06FF-]/g, '')
         + '-' + Date.now()
 
-    // حفظ المؤثر
     const { data: inf, error } = await supabase
       .from('influencers')
       .insert({ ...infData, slug })
@@ -76,17 +62,18 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error
 
-    // حفظ المنصات في جدولها المنفصل
     if (social_accounts?.length > 0) {
-      const saRows = social_accounts.map((sa: any) => ({
-        influencer_id:   inf.id,
-        platform:        sa.platform,
-        handle:          sa.handle,
-        profile_url:     sa.profile_url || null,
-        followers:       Number(sa.followers) || 0,
-        avg_views:       Number(sa.avg_views) || 0,
-        engagement_rate: Number(sa.engagement_rate) || 0,
-      }))
+      const saRows = social_accounts
+        .filter((sa: any) => sa.platform)
+        .map((sa: any) => ({
+          influencer_id:   inf.id,
+          platform:        sa.platform,
+          handle:          sa.handle || '',
+          profile_url:     sa.profile_url || null,
+          followers:       Math.max(0, Number(sa.followers) || 0),
+          avg_views:       Math.max(0, Number(sa.avg_views) || 0),
+          engagement_rate: Math.max(0, Number(sa.engagement_rate) || 0),
+        }))
       await supabase.from('social_accounts').insert(saRows)
     }
 
