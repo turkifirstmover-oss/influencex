@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createAdminClient } from '@/lib/supabase'
+import { createAdminClient } from '@/lib/supabase/admin'
 import crypto from 'crypto'
 
-export async function GET() {
-  try {
-    const supabase = createAdminClient()
-    const { data, error } = await supabase
-      .from('client_lists')
-      .select('*, client_list_influencers(count)')
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return NextResponse.json(data)
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
-  }
+export async function GET(req: NextRequest) {
+  const supabase = createAdminClient()
+  const { data, error } = await supabase
+    .from('client_lists')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
 }
 
 export async function POST(req: NextRequest) {
@@ -21,6 +18,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { name, password, influencer_ids, expires_in_days = 7 } = body
     const supabase = createAdminClient()
+
     const token = crypto.randomBytes(24).toString('hex')
     const expires_at = new Date()
     expires_at.setDate(expires_at.getDate() + Number(expires_in_days))
@@ -36,18 +34,19 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .single()
+
     if (error) throw error
 
     if (influencer_ids?.length > 0) {
       const rows = influencer_ids.map((id: string) => ({
-        list_id: list.id,
+        list_id: list.id,        // ✅ كان client_list_id — الآن list_id
         influencer_id: id,
       }))
       const { error: insertError } = await supabase
         .from('client_list_influencers')
         .insert(rows)
 
-      if (insertError) throw new Error(`فشل حفظ المؤثرين: ${insertError.message}`)
+      if (insertError) throw insertError
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://first-mover.netlify.app'
@@ -60,21 +59,16 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
-    const { id, expires_in_days, is_active } = body
+    const { id, ...updates } = body
     const supabase = createAdminClient()
-    const updateData: any = {}
-    if (is_active !== undefined) updateData.is_active = is_active
-    if (expires_in_days) {
-      const expires_at = new Date()
-      expires_at.setDate(expires_at.getDate() + Number(expires_in_days))
-      updateData.expires_at = expires_at.toISOString()
-    }
+
     const { data, error } = await supabase
       .from('client_lists')
-      .update(updateData)
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
+
     if (error) throw error
     return NextResponse.json(data)
   } catch (e: any) {
