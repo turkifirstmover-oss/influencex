@@ -48,11 +48,19 @@ export async function POST(req: NextRequest) {
     const supabase = createAdminClient()
     const { social_accounts, id: _id, ...infData } = body
 
-    const slug = infData.slug ||
-      (infData.full_name as string).trim()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w\u0600-\u06FF-]/g, '')
-        + '-' + Date.now()
+    const generateSlug = (name: string) => {
+      const timestamp = Date.now()
+      const cleaned = name
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, '-')
+        .replace(/[^a-z0-9\u0600-\u06FF-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+      return cleaned ? `${cleaned}-${timestamp}` : `influencer-${timestamp}`
+    }
+
+    const slug = infData.slug || generateSlug(infData.full_name ?? '')
 
     const { data: inf, error } = await supabase
       .from('influencers')
