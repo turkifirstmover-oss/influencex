@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { BadgeCheck, MapPin, Users, Eye, TrendingUp, ExternalLink, Clock, Lock, DollarSign } from 'lucide-react'
+import { BadgeCheck, MapPin, Users, Eye, TrendingUp, ExternalLink, Clock, Lock, DollarSign, Tag } from 'lucide-react'
 import { formatNumber, getAvatarColor, cn } from '@/lib/utils'
 
 const PLATFORM_LABELS: Record<string,string> = {
   instagram:'Instagram', tiktok:'TikTok', snapchat:'Snapchat', youtube:'YouTube', twitter:'X',
+}
+const PLATFORM_ICONS: Record<string,string> = {
+  instagram:'📸', tiktok:'🎵', snapchat:'👻', youtube:'▶️', twitter:'✕',
 }
 const PLATFORM_COLORS: Record<string,{bg:string,text:string}> = {
   instagram:{ bg:'bg-pink-50',   text:'text-pink-700'   },
@@ -251,7 +254,7 @@ export default function SharePage() {
         )}
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-900 mb-1">{list?.name}</h1>
           <p className="text-sm text-gray-400">{influencers.length} مؤثر في هذه القائمة</p>
@@ -260,53 +263,77 @@ export default function SharePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {influencers.map(inf => {
             const av = getAvatarColor(inf.full_name)
-            const engHigh = (inf.avg_engagement ?? 0) >= 5
+            const hasSocials = (inf.social_accounts ?? []).length > 0
+            const hasPrice = inf.price_from || inf.price_to
+
             return (
               <div key={inf.id} onClick={() => setSelected(inf)}
                 className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-md transition-shadow">
-                <span className={cn('self-start text-[10px] px-2 py-0.5 rounded-full font-medium',
-                  engHigh ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
-                  {Number(inf.avg_engagement ?? 0).toFixed(1)}%
-                </span>
+
+                {/* الهيدر: صورة + اسم + موقع + مجال */}
                 <div className="flex items-center gap-3">
                   {inf.avatar_url ? (
-                    <img src={inf.avatar_url} alt={inf.full_name} className="w-11 h-11 rounded-full object-cover flex-shrink-0"/>
+                    <img src={inf.avatar_url} alt={inf.full_name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-gray-100"/>
                   ) : (
-                    <div className={cn('w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
+                    <div className={cn('w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
                       {inf.full_name?.slice(0,2)}
                     </div>
                   )}
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-gray-900 flex items-center gap-1 truncate">
-                      {inf.full_name}
+                  <div className="min-w-0 flex-1 text-right">
+                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-end gap-1 truncate">
                       {inf.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0"/>}
+                      {inf.full_name}
                     </div>
-                    <div className="text-xs text-gray-400">{NICHE_LABELS[inf.niche?.[0]]??inf.niche?.[0]} · {inf.city}</div>
+                    {inf.city && (
+                      <div className="text-xs text-gray-400 flex items-center justify-end gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3"/>
+                        {inf.city}، {inf.country ?? 'السعودية'}
+                      </div>
+                    )}
+                    {inf.niche?.[0] && (
+                      <div className="text-xs text-gray-400 flex items-center justify-end gap-1 mt-0.5">
+                        <Tag className="w-3 h-3"/>
+                        {NICHE_LABELS[inf.niche[0]] ?? inf.niche[0]}
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-gray-50 rounded-lg p-2">
-                    <div className="text-[10px] text-gray-400 mb-0.5">المتابعون</div>
-                    <div className="text-sm font-semibold text-gray-900">{formatNumber(inf.total_followers ?? 0)}</div>
+
+                {/* فاصل */}
+                <div className="border-t border-gray-100"/>
+
+                {/* المنصات بأرقامها */}
+                {hasSocials && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(inf.social_accounts ?? []).map((acc: any, i: number) => (
+                      <div key={acc.id ?? acc.platform} className="flex items-center gap-1">
+                        {i > 0 && <span className="text-gray-200 text-sm">|</span>}
+                        <span className="text-xs font-semibold text-gray-700">
+                          {formatNumber(acc.followers)}
+                        </span>
+                        <span className="text-xs text-gray-400">{PLATFORM_LABELS[acc.platform] ?? acc.platform}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-2">
-                    <div className="text-[10px] text-gray-400 mb-0.5">المشاهدات</div>
-                    <div className="text-sm font-semibold text-gray-900">{formatNumber(inf.avg_views ?? 0)}</div>
-                  </div>
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {(inf.social_accounts ?? []).map((acc: any) => (
-                    <span key={acc.id??acc.platform} className="text-[10px] px-2 py-0.5 rounded border border-gray-100 bg-gray-50 text-gray-500">
-                      {PLATFORM_LABELS[acc.platform]??acc.platform}
-                    </span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100 mt-auto">
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <MapPin className="w-3 h-3"/>{inf.city??inf.country}
-                  </span>
+                )}
+
+                {/* فاصل */}
+                <div className="border-t border-gray-100"/>
+
+                {/* السعر + عرض التفاصيل */}
+                <div className="flex items-center justify-between">
                   <span className="text-xs text-violet-600 font-medium">عرض التفاصيل ←</span>
+                  {hasPrice ? (
+                    <div className="text-right">
+                      <div className="text-[10px] text-gray-400">ابتداءً من</div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {formatNumber(Number(inf.price_from ?? inf.price_to))}
+                        <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
+
               </div>
             )
           })}
