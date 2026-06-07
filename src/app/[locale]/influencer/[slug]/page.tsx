@@ -73,6 +73,7 @@ export default function InfluencerDetailPage() {
 
   const avatar = getAvatarColor(inf.full_name)
   const totalFollowers = inf.social_accounts?.reduce((s: number, a: any) => s + (a.followers ?? 0), 0) ?? inf.total_followers ?? 0
+  const hasPrices = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isAr ? 'rtl' : 'ltr'}>
@@ -124,7 +125,7 @@ export default function InfluencerDetailPage() {
           {inf.bio && <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t pt-4">{inf.bio}</p>}
         </div>
 
-        {/* إجمالي المتابعين فقط */}
+        {/* إجمالي المتابعين */}
         <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
             <Users className="w-3.5 h-3.5"/> {isAr ? 'إجمالي المتابعين' : 'Total Followers'}
@@ -132,25 +133,45 @@ export default function InfluencerDetailPage() {
           <div className="text-2xl font-bold text-gray-900">{formatNumber(totalFollowers)}</div>
         </div>
 
-        {(inf.price_from || inf.price_to) && (
+        {/* السعر التقريبي لكل منصة */}
+        {hasPrices && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">
               {isAr ? 'السعر التقريبي' : 'Estimated Price'}
             </h2>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-2xl font-bold text-gray-900">
-                {inf.price_from && formatNumber(Number(inf.price_from))}
-                {inf.price_from && inf.price_to && ' — '}
-                {inf.price_to && formatNumber(Number(inf.price_to))}
-              </span>
-              <span className="text-sm text-gray-500">ريال</span>
-              {inf.price_note && (
-                <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">{inf.price_note}</span>
-              )}
+            <div className="divide-y divide-gray-100">
+              {(inf.social_accounts ?? []).map((acc: any, i: number) => (
+                <div key={i} className="flex items-center justify-between py-3">
+                  <div>
+                    {(acc.price_from || acc.price_to) ? (
+                      <>
+                        <div className="text-[10px] text-gray-400 mb-0.5">ابتداءً من</div>
+                        <div className="text-lg font-bold text-gray-900">
+                          {acc.price_from && formatNumber(Number(acc.price_from))}
+                          {acc.price_from && acc.price_to && ' — '}
+                          {acc.price_to && formatNumber(Number(acc.price_to))}
+                          <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
+                        </div>
+                        {acc.price_note && (
+                          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">
+                            {acc.price_note}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">— لا يوجد سعر</span>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">
+                    {PLATFORM_LABELS[acc.platform] ?? acc.platform}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
+        {/* المنصات الاجتماعية */}
         {(inf.social_accounts ?? []).length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">{isAr ? 'المنصات الاجتماعية' : 'Social Platforms'}</h2>
@@ -166,9 +187,7 @@ export default function InfluencerDetailPage() {
                       <span className="text-sm text-gray-500">{acc.handle}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-sm font-semibold text-gray-900">{formatNumber(acc.followers)}</div>
-                      </div>
+                      <div className="text-sm font-semibold text-gray-900">{formatNumber(acc.followers)}</div>
                       {acc.profile_url && <ExternalLink className="w-4 h-4 text-gray-400"/>}
                     </div>
                   </div>
