@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { BadgeCheck, MapPin, ArrowRight, Users, Eye, TrendingUp, ExternalLink, DollarSign } from 'lucide-react'
+import { BadgeCheck, MapPin, ArrowRight, Users, ExternalLink } from 'lucide-react'
 import { MOCK_INFLUENCERS } from '@/lib/data'
 import { formatNumber, getAvatarColor, cn } from '@/lib/utils'
 
@@ -124,23 +124,18 @@ export default function InfluencerDetailPage() {
           {inf.bio && <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t pt-4">{inf.bio}</p>}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-          {[
-            { icon: Users,      label: isAr ? 'إجمالي المتابعين' : 'Total Followers', value: formatNumber(totalFollowers) },
-            { icon: Eye,        label: isAr ? 'متوسط المشاهدات' : 'Avg Views',        value: formatNumber(inf.avg_views ?? 0) },
-            { icon: TrendingUp, label: isAr ? 'معدل التفاعل' : 'Engagement',          value: `${Number(inf.avg_engagement ?? 0).toFixed(1)}%` },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="bg-white border border-gray-100 rounded-xl p-4">
-              <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2"><Icon className="w-3.5 h-3.5"/> {label}</div>
-              <div className="text-2xl font-bold text-gray-900">{value}</div>
-            </div>
-          ))}
+        {/* إجمالي المتابعين فقط */}
+        <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
+          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+            <Users className="w-3.5 h-3.5"/> {isAr ? 'إجمالي المتابعين' : 'Total Followers'}
+          </div>
+          <div className="text-2xl font-bold text-gray-900">{formatNumber(totalFollowers)}</div>
         </div>
 
         {(inf.price_from || inf.price_to) && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <DollarSign className="w-4 h-4"/> {isAr ? 'السعر التقريبي' : 'Estimated Price'}
+            <h2 className="text-sm font-semibold text-gray-700 mb-3">
+              {isAr ? 'السعر التقريبي' : 'Estimated Price'}
             </h2>
             <div className="flex items-baseline gap-2 flex-wrap">
               <span className="text-2xl font-bold text-gray-900">
@@ -173,7 +168,6 @@ export default function InfluencerDetailPage() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <div className="text-sm font-semibold text-gray-900">{formatNumber(acc.followers)}</div>
-                        <div className="text-xs text-gray-400">{acc.engagement_rate}%</div>
                       </div>
                       {acc.profile_url && <ExternalLink className="w-4 h-4 text-gray-400"/>}
                     </div>
