@@ -127,9 +127,9 @@ export default function HomePage({ params }: { params: { locale: string } }) {
       <div className={cn('border-b px-4 py-3', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')}>
         <div className="max-w-5xl mx-auto grid grid-cols-3 gap-3">
           {[
-            { icon: Users,    label: isAr ? 'إجمالي المؤثرين' : 'Influencers', value: influencers.length.toString() },
-            { icon: Eye,      label: isAr ? 'إجمالي المتابعين' : 'Followers',  value: formatNumber(totalFollowers) },
-            { icon: Briefcase,label: isAr ? 'علامات تجارية' : 'Brands',        value: '150+' },
+            { icon: Users,     label: isAr ? 'إجمالي المؤثرين' : 'Influencers', value: influencers.length.toString() },
+            { icon: Eye,       label: isAr ? 'إجمالي المتابعين' : 'Followers',  value: formatNumber(totalFollowers) },
+            { icon: Briefcase, label: isAr ? 'علامات تجارية' : 'Brands',        value: '150+' },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className={cn('rounded-xl p-3 border', dark ? 'bg-[#1a1a1a] border-[#2a2a2a]' : 'bg-violet-50 border-violet-200')}>
               <div className={cn('flex items-center gap-1.5 text-xs mb-1', dark ? 'text-gray-500' : 'text-violet-600')}>
@@ -141,28 +141,27 @@ export default function HomePage({ params }: { params: { locale: string } }) {
         </div>
       </div>
 
-      {/* BODY: سايدبار + بطاقات */}
-      <div className="max-w-5xl mx-auto flex gap-0">
+      {/* BODY */}
+      <div className="max-w-5xl mx-auto flex">
 
-        {/* SIDEBAR FILTERS */}
-        <aside className={cn('w-44 flex-shrink-0 border-l sticky top-14 self-start h-fit py-4 px-3 flex flex-col gap-5', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')}>
+        {/* SIDEBAR */}
+        <aside className={cn('w-44 flex-shrink-0 border-r sticky top-14 self-start h-fit py-4 px-3 flex flex-col gap-5', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')}>
 
-          {/* مسح الكل */}
           {(niche !== 'all' || platform !== 'all' || gender !== 'all' || verified) && (
             <button onClick={() => { setNiche('all'); setPlatform('all'); setGender('all'); setVerified(false) }}
-              className="text-xs text-red-500 flex items-center gap-1">
-              <X className="w-3 h-3" /> {isAr ? 'مسح الكل' : 'Clear'}
+              className="text-xs text-red-500 flex items-center gap-1 justify-end">
+              {isAr ? 'مسح الكل' : 'Clear'} <X className="w-3 h-3" />
             </button>
           )}
 
           {/* المجال */}
-          <div className="flex flex-col gap-1">
-            <span className={cn('text-xs font-medium px-2 mb-1', dark ? 'text-gray-500' : 'text-gray-400')}>
+          <div className="flex flex-col gap-0.5">
+            <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'المجال' : 'Niche'}
             </span>
             {NICHES.map(n => (
               <button key={n.value} onClick={() => setNiche(n.value)}
-                className={cn('text-right text-sm px-2.5 py-1.5 rounded-lg transition-colors',
+                className={cn('text-right text-sm px-2.5 py-1.5 rounded-lg transition-colors w-full',
                   niche === n.value
                     ? 'bg-violet-50 text-violet-800 font-semibold'
                     : dark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-700 hover:bg-gray-50')}>
@@ -172,33 +171,33 @@ export default function HomePage({ params }: { params: { locale: string } }) {
           </div>
 
           {/* المنصة */}
-          <div className="flex flex-col gap-1">
-            <span className={cn('text-xs font-medium px-2 mb-1', dark ? 'text-gray-500' : 'text-gray-400')}>
+          <div className="flex flex-col gap-0.5">
+            <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'المنصة' : 'Platform'}
             </span>
             {PLATFORMS.map(p => (
               <button key={p.value} onClick={() => setPlatform(p.value)}
-                className={cn('flex items-center justify-end gap-2 text-sm px-2.5 py-1.5 rounded-lg transition-colors w-full',
+                className={cn('flex items-center gap-2 text-sm px-2.5 py-1.5 rounded-lg transition-colors w-full',
                   platform === p.value
                     ? 'bg-violet-50 text-violet-800 font-semibold'
                     : dark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-700 hover:bg-gray-50')}>
-                <span>{p.label}</span>
                 {p.color && (
                   <span className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ background: p.color, border: p.value === 'snapchat' ? '1px solid #ddd' : 'none' }} />
                 )}
+                <span className="flex-1 text-right">{p.label}</span>
               </button>
             ))}
           </div>
 
           {/* الجنس */}
-          <div className="flex flex-col gap-1">
-            <span className={cn('text-xs font-medium px-2 mb-1', dark ? 'text-gray-500' : 'text-gray-400')}>
+          <div className="flex flex-col gap-0.5">
+            <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'الجنس' : 'Gender'}
             </span>
             {(['all','male','female'] as const).map(g => (
               <button key={g} onClick={() => setGender(g)}
-                className={cn('text-right text-sm px-2.5 py-1.5 rounded-lg transition-colors',
+                className={cn('text-right text-sm px-2.5 py-1.5 rounded-lg transition-colors w-full',
                   gender === g
                     ? 'bg-violet-50 text-violet-800 font-semibold'
                     : dark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-700 hover:bg-gray-50')}>
@@ -208,8 +207,8 @@ export default function HomePage({ params }: { params: { locale: string } }) {
           </div>
 
           {/* التوثيق */}
-          <div className="flex flex-col gap-1">
-            <span className={cn('text-xs font-medium px-2 mb-1', dark ? 'text-gray-500' : 'text-gray-400')}>
+          <div className="flex flex-col gap-0.5">
+            <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'التوثيق' : 'Verified'}
             </span>
             <label className="flex items-center justify-end gap-2 px-2.5 py-1.5 cursor-pointer" onClick={() => setVerified(v => !v)}>
@@ -229,8 +228,8 @@ export default function HomePage({ params }: { params: { locale: string } }) {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Array.from({length: 4}).map((_, i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Array.from({length: 6}).map((_, i) => (
                 <div key={i} className={cn('rounded-2xl border p-4 h-48 animate-pulse', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')} />
               ))}
             </div>
@@ -240,7 +239,7 @@ export default function HomePage({ params }: { params: { locale: string } }) {
               <p className="text-sm">{isAr ? 'لا توجد نتائج' : 'No results'}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map(inf => {
                 const av = getAvColor(inf.full_name)
                 const hasSocials = (inf.social_accounts ?? []).length > 0
