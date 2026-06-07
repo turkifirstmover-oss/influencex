@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   ArrowRight, Plus, Pencil, Trash2, Eye, Search, X, Save,
   Check, AlertCircle, Link2, ImageIcon, DollarSign, Share2,
-  Upload, Download, Clock, Copy, ToggleLeft, ToggleRight
+  Upload, Download, Clock, Copy
 } from 'lucide-react'
 
 const NICHES = ['news','media','business','marketing','tech','ugc']
@@ -173,7 +173,7 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
 
   function addSocial() {
     setEditData((p:any) => ({...p, social_accounts:[...(p.social_accounts??[]),
-      {platform:'instagram',handle:'',followers:0,avg_views:0,engagement_rate:0,profile_url:''}
+      {platform:'instagram',handle:'',followers:0,profile_url:''}
     ]}))
   }
   function updateSocial(i:number, key:string, val:any) {
@@ -612,13 +612,7 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                         </div>
                         <input value={acc.followers} onChange={e=>updateSocial(i,'followers',Number(e.target.value))}
                           type="number" placeholder="عدد المتابعين"
-                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
-                        <input value={acc.avg_views} onChange={e=>updateSocial(i,'avg_views',Number(e.target.value))}
-                          type="number" placeholder="متوسط المشاهدات"
-                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
-                        <input value={acc.engagement_rate} onChange={e=>updateSocial(i,'engagement_rate',Number(e.target.value))}
-                          type="number" step="0.1" placeholder="معدل التفاعل %"
-                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                          className="col-span-2 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
                       </div>
                     </div>
                   ))}
