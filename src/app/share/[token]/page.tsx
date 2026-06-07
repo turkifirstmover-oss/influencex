@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import { BadgeCheck, MapPin, Users, Eye, TrendingUp, ExternalLink, Clock, Lock, DollarSign, Tag } from 'lucide-react'
+import { BadgeCheck, MapPin, Users, ExternalLink, Clock, Lock, Tag } from 'lucide-react'
 import { formatNumber, getAvatarColor, cn } from '@/lib/utils'
 
 const PLATFORM_LABELS: Record<string,string> = {
@@ -164,25 +164,17 @@ export default function SharePage() {
             {selected.bio && <p className="mt-3 text-sm text-gray-600 border-t pt-3">{selected.bio}</p>}
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {[
-              { icon: Users, label: 'المتابعون', value: formatNumber(totalFollowers) },
-              { icon: Eye, label: 'المشاهدات', value: formatNumber(selected.avg_views ?? 0) },
-              { icon: TrendingUp, label: 'التفاعل', value: `${Number(selected.avg_engagement ?? 0).toFixed(1)}%` },
-            ].map(({icon:Icon, label, value}) => (
-              <div key={label} className="bg-white border border-gray-100 rounded-xl p-3 text-center">
-                <Icon className="w-4 h-4 text-gray-400 mx-auto mb-1"/>
-                <div className="text-lg font-bold text-gray-900">{value}</div>
-                <div className="text-xs text-gray-400">{label}</div>
-              </div>
-            ))}
+          {/* إجمالي المتابعين فقط */}
+          <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+              <Users className="w-3.5 h-3.5"/> إجمالي المتابعين
+            </div>
+            <div className="text-2xl font-bold text-gray-900">{formatNumber(totalFollowers)}</div>
           </div>
 
           {(selected.price_from || selected.price_to) && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                <DollarSign className="w-4 h-4"/> السعر التقريبي
-              </div>
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">السعر التقريبي</h2>
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="text-xl font-bold text-gray-900">
                   {selected.price_from && formatNumber(Number(selected.price_from))}
@@ -212,10 +204,7 @@ export default function SharePage() {
                         <span className="text-xs text-gray-500">{acc.handle}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-gray-900">{formatNumber(acc.followers)}</div>
-                          <div className="text-xs text-gray-400">{acc.engagement_rate}%</div>
-                        </div>
+                        <div className="text-sm font-semibold text-gray-900">{formatNumber(acc.followers)}</div>
                         {acc.profile_url && <ExternalLink className="w-3.5 h-3.5 text-gray-400"/>}
                       </div>
                     </div>
@@ -267,7 +256,6 @@ export default function SharePage() {
               <div key={inf.id} onClick={() => setSelected(inf)}
                 className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-md transition-shadow">
 
-                {/* الهيدر: معلومات يسار + صورة يمين */}
                 <div className="flex items-center gap-3">
                   {inf.avatar_url ? (
                     <img src={inf.avatar_url} alt={inf.full_name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-gray-100"/>
@@ -296,28 +284,22 @@ export default function SharePage() {
                   </div>
                 </div>
 
-                {/* فاصل */}
                 <div className="border-t border-gray-100"/>
 
-                {/* المنصات بأرقامها */}
                 {hasSocials && (
                   <div className="flex items-center gap-2 flex-wrap">
                     {(inf.social_accounts ?? []).map((acc: any, i: number) => (
                       <div key={acc.id ?? acc.platform} className="flex items-center gap-1">
                         {i > 0 && <span className="text-gray-200 text-sm">|</span>}
-                        <span className="text-xs font-semibold text-gray-700">
-                          {formatNumber(acc.followers)}
-                        </span>
+                        <span className="text-xs font-semibold text-gray-700">{formatNumber(acc.followers)}</span>
                         <span className="text-xs text-gray-400">{PLATFORM_LABELS[acc.platform] ?? acc.platform}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {/* فاصل */}
                 <div className="border-t border-gray-100"/>
 
-                {/* السعر يمين + عرض التفاصيل يسار */}
                 <div className="flex items-center justify-between">
                   {hasPrice ? (
                     <div>
