@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight, Plus, Pencil, Trash2, Eye, Search, X, Save,
-  Check, AlertCircle, Link2, ImageIcon, DollarSign, Share2,
+  Check, AlertCircle, Link2, ImageIcon, Share2,
   Upload, Download, Clock, Copy
 } from 'lucide-react'
 
@@ -26,7 +26,6 @@ const emptyInfluencer = () => ({
   is_verified:false, is_featured:false, is_active:true,
   social_accounts:[] as any[],
   brand_names:[] as string[], collab_types:[] as string[],
-  price_from:'', price_to:'', price_note:'غير شامل الضريبة',
 })
 
 function cn(...classes: any[]) { return classes.filter(Boolean).join(' ') }
@@ -86,8 +85,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
     setEditData({...emptyInfluencer(),...inf,
       niche:inf.niche??[], social_accounts:inf.social_accounts??[],
       brand_names:inf.brand_names??[], collab_types:inf.collab_types??[],
-      price_from:inf.price_from??'', price_to:inf.price_to??'',
-      price_note:inf.price_note??'غير شامل الضريبة',
     })
     setShowForm(true)
   }
@@ -173,7 +170,7 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
 
   function addSocial() {
     setEditData((p:any) => ({...p, social_accounts:[...(p.social_accounts??[]),
-      {platform:'instagram',handle:'',followers:0,profile_url:''}
+      {platform:'instagram',handle:'',followers:0,profile_url:'',price_from:'',price_to:'',price_note:'غير شامل الضريبة'}
     ]}))
   }
   function updateSocial(i:number, key:string, val:any) {
@@ -216,7 +213,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
           ))}
         </div>
 
-        {/* ===== المؤثرون ===== */}
         {tab==='influencers' && (
           <div>
             <div className="flex items-center gap-3 mb-4">
@@ -329,7 +325,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
           </div>
         )}
 
-        {/* ===== قوائم المشاركة ===== */}
         {tab==='lists' && (
           <div className="space-y-4 max-w-2xl">
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
@@ -441,7 +436,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
           </div>
         )}
 
-        {/* ===== استيراد CSV ===== */}
         {tab==='import' && (
           <div className="max-w-lg">
             <div className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
@@ -478,7 +472,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
         )}
       </div>
 
-      {/* ===== فورم الإضافة/التعديل ===== */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-[200] flex items-start justify-center p-4 overflow-y-auto" dir={isAr?'rtl':'ltr'}>
           <div className="bg-white rounded-2xl w-full max-w-2xl my-4">
@@ -614,26 +607,27 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                           type="number" placeholder="عدد المتابعين"
                           className="col-span-2 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
                       </div>
+
+                      {/* السعر لكل منصة */}
+                      <div className="border-t border-gray-100 pt-2">
+                        <p className="text-[10px] text-gray-400 mb-1.5">السعر التقريبي (اختياري)</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input value={acc.price_from||''} onChange={e=>updateSocial(i,'price_from',e.target.value)}
+                            type="number" placeholder="من"
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                          <input value={acc.price_to||''} onChange={e=>updateSocial(i,'price_to',e.target.value)}
+                            type="number" placeholder="إلى"
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
+                          <select value={acc.price_note||'غير شامل الضريبة'} onChange={e=>updateSocial(i,'price_note',e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400">
+                            <option value="غير شامل الضريبة">غير شامل الضريبة</option>
+                            <option value="شامل الضريبة">شامل الضريبة</option>
+                          </select>
+                        </div>
+                      </div>
+
                     </div>
                   ))}
-                </div>
-              </div>
-
-              {/* السعر */}
-              <div>
-                <label className="text-xs text-gray-500 mb-2 block">السعر التقريبي (ريال سعودي)</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <input value={editData.price_from} onChange={e=>setEditData((p:any)=>({...p,price_from:e.target.value}))}
-                    type="number" placeholder="من"
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
-                  <input value={editData.price_to} onChange={e=>setEditData((p:any)=>({...p,price_to:e.target.value}))}
-                    type="number" placeholder="إلى"
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400"/>
-                  <select value={editData.price_note} onChange={e=>setEditData((p:any)=>({...p,price_note:e.target.value}))}
-                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-violet-400">
-                    <option value="غير شامل الضريبة">غير شامل الضريبة</option>
-                    <option value="شامل الضريبة">شامل الضريبة</option>
-                  </select>
                 </div>
               </div>
 
@@ -671,7 +665,6 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
         </div>
       )}
 
-      {/* تأكيد الحذف */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 z-[300] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center">
