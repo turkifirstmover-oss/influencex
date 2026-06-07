@@ -6,18 +6,13 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const { id } = params
   try {
     const supabase = createAdminClient()
-
-    // أولاً: جرّب البحث بالـ slug
     const { data: bySlug } = await supabase
       .from('influencers')
       .select(`*, social_accounts(*), media_items(*), brand_collaborations(*)`)
       .eq('slug', id)
       .eq('is_active', true)
       .maybeSingle()
-
     if (bySlug) return NextResponse.json(bySlug)
-
-    // ثانياً: جرّب البحث بالـ UUID (فقط لو يبدو UUID)
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
     if (isUUID) {
       const { data: byId } = await supabase
@@ -26,15 +21,11 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         .eq('id', id)
         .eq('is_active', true)
         .maybeSingle()
-
       if (byId) return NextResponse.json(byId)
     }
-
   } catch (e) {
     console.error('GET influencer error:', e)
   }
-
-  // fallback للبيانات التجريبية
   const inf = MOCK_INFLUENCERS.find(i => i.id === id || i.slug === id)
   if (!inf) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(inf)
@@ -49,7 +40,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       total_followers, avg_views, avg_engagement, platform_count,
       ...infData
     } = body
-
     const { data, error } = await supabase
       .from('influencers')
       .update(infData)
@@ -57,7 +47,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       .select()
       .single()
     if (error) throw error
-
     if (social_accounts !== undefined) {
       await supabase.from('social_accounts').delete().eq('influencer_id', params.id)
       if (social_accounts?.length > 0) {
@@ -71,11 +60,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             followers:       Math.max(0, Number(sa.followers) || 0),
             avg_views:       Math.max(0, Number(sa.avg_views) || 0),
             engagement_rate: Math.max(0, Number(sa.engagement_rate) || 0),
+            price_from:      sa.price_from ? Number(sa.price_from) : null,
+            price_to:        sa.price_to ? Number(sa.price_to) : null,
+            price_note:      sa.price_note || null,
           }))
         await supabase.from('social_accounts').insert(saRows)
       }
     }
-
     return NextResponse.json(data)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
