@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, X, Users, Eye, TrendingUp, Briefcase, BadgeCheck, LayoutDashboard, Moon, Sun, MapPin } from 'lucide-react'
+import { Search, X, Users, Eye, TrendingUp, Briefcase, BadgeCheck, LayoutDashboard, Moon, Sun, MapPin, Tag } from 'lucide-react'
 import { formatNumber, cn } from '@/lib/utils'
 
 const NICHES = [
@@ -23,6 +23,17 @@ const PLATFORMS = [
   { value: 'youtube',   label: 'YouTube',   dot: 'bg-red-600' },
   { value: 'twitter',   label: 'X',         dot: 'bg-black' },
 ]
+
+const PLATFORM_LABELS: Record<string,string> = {
+  instagram:'Instagram', tiktok:'TikTok', snapchat:'Snapchat', youtube:'YouTube', twitter:'X',
+}
+
+const NICHE_LABELS: Record<string,string> = {
+  news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
+  marketing:'تسويق', tech:'تقني', ugc:'UGC',
+  lifestyle:'لايف ستايل', fashion:'أزياء', auto:'سيارات',
+  sports:'رياضة', food:'طعام', travel:'سفر'
+}
 
 const AVATAR_COLORS = [
   { bg: 'bg-violet-100', text: 'text-violet-700' },
@@ -146,7 +157,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             )}
           </div>
 
-          {/* المجال */}
           <div className="flex items-center gap-3">
             <span className={cn('text-xs font-medium whitespace-nowrap min-w-[36px]', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'المجال' : 'Niche'}
@@ -164,7 +174,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             </div>
           </div>
 
-          {/* المنصة */}
           <div className="flex items-center gap-3">
             <span className={cn('text-xs font-medium whitespace-nowrap min-w-[36px]', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'المنصة' : 'Platform'}
@@ -183,7 +192,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             </div>
           </div>
 
-          {/* الجنس + التوثيق */}
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-3">
               <span className={cn('text-xs font-medium whitespace-nowrap min-w-[36px]', dark ? 'text-gray-500' : 'text-gray-400')}>
@@ -232,69 +240,81 @@ export default function HomePage({ params }: { params: { locale: string } }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map(inf => {
               const av = getAvColor(inf.full_name)
-              const engHigh = (inf.avg_engagement ?? 0) >= 5
-              const nicheLabel: Record<string,string> = {
-                news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
-                marketing:'تسويق', tech:'تقني', ugc:'UGC',
-                lifestyle:'لايف ستايل', fashion:'أزياء', auto:'سيارات',
-                sports:'رياضة', food:'طعام', travel:'سفر'
-              }
-              return (
-                <div key={inf.id} className={cn('relative rounded-2xl border p-4 flex flex-col gap-3 transition-colors', dark ? 'bg-[#111] border-[#2a2a2a] hover:border-[#3a3a3a]' : 'bg-white border-gray-100 hover:shadow-sm')}>
-                  <span className={cn('absolute top-3 left-3 text-[10px] px-2 py-0.5 rounded-full font-medium',
-                    engHigh ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700')}>
-                    {Number(inf.avg_engagement ?? 0).toFixed(1)}%
-                  </span>
+              const hasSocials = (inf.social_accounts ?? []).length > 0
+              const hasPrice = inf.price_from || inf.price_to
 
+              return (
+                <div key={inf.id} className={cn('rounded-2xl border p-4 flex flex-col gap-3 transition-colors', dark ? 'bg-[#111] border-[#2a2a2a] hover:border-[#3a3a3a]' : 'bg-white border-gray-100 hover:shadow-sm')}>
+
+                  {/* الهيدر: صورة يمين + معلومات يسار */}
                   <div className="flex items-center gap-3">
                     {inf.avatar_url ? (
-                      <img src={inf.avatar_url} alt={inf.full_name} className="w-11 h-11 rounded-full object-cover flex-shrink-0" />
+                      <img src={inf.avatar_url} alt={inf.full_name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-gray-100" />
                     ) : (
-                      <div className={cn('w-11 h-11 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
+                      <div className={cn('w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
                         {inf.full_name?.slice(0, 2)}
                       </div>
                     )}
-                    <div className="min-w-0">
-                      <div className={cn('text-sm font-semibold truncate flex items-center gap-1', dark ? 'text-white' : 'text-gray-900')}>
+                    <div className="min-w-0 flex-1">
+                      <div className={cn('text-sm font-semibold flex items-center gap-1', dark ? 'text-white' : 'text-gray-900')}>
                         {inf.full_name}
                         {inf.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
                       </div>
-                      <div className={cn('text-xs mt-0.5', dark ? 'text-gray-500' : 'text-gray-400')}>
-                        {nicheLabel[inf.niche?.[0]] ?? inf.niche?.[0]} · {inf.city}
-                      </div>
+                      {inf.city && (
+                        <div className={cn('text-xs flex items-center gap-1 mt-0.5', dark ? 'text-gray-500' : 'text-gray-400')}>
+                          <MapPin className="w-3 h-3" />
+                          {inf.city}، {inf.country ?? 'السعودية'}
+                        </div>
+                      )}
+                      {inf.niche?.[0] && (
+                        <div className={cn('text-xs flex items-center gap-1 mt-0.5', dark ? 'text-gray-500' : 'text-gray-400')}>
+                          <Tag className="w-3 h-3" />
+                          {NICHE_LABELS[inf.niche[0]] ?? inf.niche[0]}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { label: isAr ? 'المتابعون' : 'Followers', value: formatNumber(inf.total_followers ?? 0) },
-                      { label: isAr ? 'المشاهدات' : 'Views',     value: formatNumber(inf.avg_views ?? 0) },
-                    ].map(s => (
-                      <div key={s.label} className={cn('rounded-lg p-2.5', dark ? 'bg-[#1a1a1a]' : 'bg-gray-50')}>
-                        <div className={cn('text-[10px] mb-1', dark ? 'text-gray-500' : 'text-gray-400')}>{s.label}</div>
-                        <div className={cn('text-sm font-semibold', dark ? 'text-white' : 'text-gray-900')}>{s.value}</div>
+                  {/* فاصل */}
+                  <div className={cn('border-t', dark ? 'border-[#2a2a2a]' : 'border-gray-100')} />
+
+                  {/* المنصات بأرقامها */}
+                  {hasSocials && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(inf.social_accounts ?? []).map((acc: any, i: number) => (
+                        <div key={acc.id ?? acc.platform} className="flex items-center gap-1">
+                          {i > 0 && <span className={cn('text-sm', dark ? 'text-gray-700' : 'text-gray-200')}>|</span>}
+                          <span className={cn('text-xs font-semibold', dark ? 'text-white' : 'text-gray-700')}>
+                            {formatNumber(acc.followers)}
+                          </span>
+                          <span className={cn('text-xs', dark ? 'text-gray-500' : 'text-gray-400')}>
+                            {PLATFORM_LABELS[acc.platform] ?? acc.platform}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* فاصل */}
+                  <div className={cn('border-t mt-auto', dark ? 'border-[#2a2a2a]' : 'border-gray-100')} />
+
+                  {/* السعر يمين + عرض التفاصيل يسار */}
+                  <div className="flex items-center justify-between">
+                    {hasPrice ? (
+                      <div>
+                        <div className={cn('text-[10px]', dark ? 'text-gray-500' : 'text-gray-400')}>ابتداءً من</div>
+                        <div className={cn('text-sm font-semibold', dark ? 'text-white' : 'text-gray-900')}>
+                          {formatNumber(Number(inf.price_from ?? inf.price_to))}
+                          <span className={cn('text-xs font-normal mr-1', dark ? 'text-gray-500' : 'text-gray-400')}>ريال</span>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-1.5 flex-wrap">
-                    {inf.social_accounts?.map((acc: any) => (
-                      <span key={acc.id ?? acc.platform} className={cn('text-[10px] px-2 py-1 rounded border font-medium',
-                        dark ? 'bg-[#1a1a1a] border-[#2a2a2a] text-gray-400' : 'bg-gray-50 border-gray-100 text-gray-500')}>
-                        {acc.platform === 'instagram' ? 'Instagram' : acc.platform === 'tiktok' ? 'TikTok' : acc.platform === 'snapchat' ? 'Snapchat' : acc.platform === 'youtube' ? 'YouTube' : acc.platform === 'twitter' ? 'X' : acc.platform}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className={cn('flex items-center justify-between pt-2 border-t mt-auto', dark ? 'border-[#2a2a2a]' : 'border-gray-100')}>
-                    <span className={cn('flex items-center gap-1 text-xs', dark ? 'text-gray-500' : 'text-gray-400')}>
-                      <MapPin className="w-3 h-3" /> {inf.city ?? inf.country}
-                    </span>
+                    ) : <span />}
                     <Link href={`/${locale}/influencer/${inf.slug}`}
-                      className="text-xs bg-violet-500 hover:bg-violet-600 text-white px-4 py-1.5 rounded-lg transition-colors font-medium">
-                      {isAr ? 'عرض التفاصيل' : 'View Profile'}
+                      className="text-xs text-violet-600 font-medium hover:text-violet-700">
+                      {isAr ? 'عرض التفاصيل ←' : 'View Profile →'}
                     </Link>
                   </div>
+
                 </div>
               )
             })}
