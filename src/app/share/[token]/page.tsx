@@ -267,26 +267,8 @@ export default function SharePage() {
               <div key={inf.id} onClick={() => setSelected(inf)}
                 className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-md transition-shadow">
 
-                {/* الهيدر: صورة يمين + معلومات يسار */}
+                {/* الهيدر: معلومات يسار + صورة يمين */}
                 <div className="flex items-center gap-3">
-                  <div className="min-w-0 flex-1 text-right">
-                    <div className="text-sm font-semibold text-gray-900 flex items-center justify-end gap-1 truncate">
-                      {inf.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0"/>}
-                      {inf.full_name}
-                    </div>
-                    {inf.city && (
-                      <div className="text-xs text-gray-400 flex items-center justify-end gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3"/>
-                        {inf.city}، {inf.country ?? 'السعودية'}
-                      </div>
-                    )}
-                    {inf.niche?.[0] && (
-                      <div className="text-xs text-gray-400 flex items-center justify-end gap-1 mt-0.5">
-                        <Tag className="w-3 h-3"/>
-                        {NICHE_LABELS[inf.niche[0]] ?? inf.niche[0]}
-                      </div>
-                    )}
-                  </div>
                   {inf.avatar_url ? (
                     <img src={inf.avatar_url} alt={inf.full_name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-gray-100"/>
                   ) : (
@@ -294,6 +276,24 @@ export default function SharePage() {
                       {inf.full_name?.slice(0,2)}
                     </div>
                   )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                      {inf.full_name}
+                      {inf.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0"/>}
+                    </div>
+                    {inf.city && (
+                      <div className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3"/>
+                        {inf.city}، {inf.country ?? 'السعودية'}
+                      </div>
+                    )}
+                    {inf.niche?.[0] && (
+                      <div className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                        <Tag className="w-3 h-3"/>
+                        {NICHE_LABELS[inf.niche[0]] ?? inf.niche[0]}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* فاصل */}
@@ -317,18 +317,18 @@ export default function SharePage() {
                 {/* فاصل */}
                 <div className="border-t border-gray-100"/>
 
-                {/* السعر + عرض التفاصيل */}
+                {/* السعر يمين + عرض التفاصيل يسار */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-violet-600 font-medium">عرض التفاصيل ←</span>
                   {hasPrice ? (
-                    <div className="text-right">
+                    <div>
                       <div className="text-[10px] text-gray-400">ابتداءً من</div>
                       <div className="text-sm font-semibold text-gray-900">
                         {formatNumber(Number(inf.price_from ?? inf.price_to))}
                         <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
                       </div>
                     </div>
-                  ) : null}
+                  ) : <span/>}
+                  <span className="text-xs text-violet-600 font-medium">عرض التفاصيل ←</span>
                 </div>
 
               </div>
