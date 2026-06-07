@@ -8,9 +8,6 @@ import { formatNumber, getAvatarColor, cn } from '@/lib/utils'
 const PLATFORM_LABELS: Record<string,string> = {
   instagram:'Instagram', tiktok:'TikTok', snapchat:'Snapchat', youtube:'YouTube', twitter:'X',
 }
-const PLATFORM_ICONS: Record<string,string> = {
-  instagram:'📸', tiktok:'🎵', snapchat:'👻', youtube:'▶️', twitter:'✕',
-}
 const PLATFORM_COLORS: Record<string,{bg:string,text:string}> = {
   instagram:{ bg:'bg-pink-50',   text:'text-pink-700'   },
   tiktok:   { bg:'bg-gray-100',  text:'text-gray-800'   },
@@ -270,15 +267,8 @@ export default function SharePage() {
               <div key={inf.id} onClick={() => setSelected(inf)}
                 className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-md transition-shadow">
 
-                {/* الهيدر: صورة + اسم + موقع + مجال */}
+                {/* الهيدر: صورة يمين + معلومات يسار */}
                 <div className="flex items-center gap-3">
-                  {inf.avatar_url ? (
-                    <img src={inf.avatar_url} alt={inf.full_name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-gray-100"/>
-                  ) : (
-                    <div className={cn('w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
-                      {inf.full_name?.slice(0,2)}
-                    </div>
-                  )}
                   <div className="min-w-0 flex-1 text-right">
                     <div className="text-sm font-semibold text-gray-900 flex items-center justify-end gap-1 truncate">
                       {inf.is_verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500 flex-shrink-0"/>}
@@ -297,6 +287,13 @@ export default function SharePage() {
                       </div>
                     )}
                   </div>
+                  {inf.avatar_url ? (
+                    <img src={inf.avatar_url} alt={inf.full_name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border border-gray-100"/>
+                  ) : (
+                    <div className={cn('w-12 h-12 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0', av.bg, av.text)}>
+                      {inf.full_name?.slice(0,2)}
+                    </div>
+                  )}
                 </div>
 
                 {/* فاصل */}
