@@ -125,7 +125,6 @@ export default function InfluencerDetailPage() {
           {inf.bio && <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t pt-4">{inf.bio}</p>}
         </div>
 
-        {/* إجمالي المتابعين */}
         <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
             <Users className="w-3.5 h-3.5"/> {isAr ? 'إجمالي المتابعين' : 'Total Followers'}
@@ -133,7 +132,6 @@ export default function InfluencerDetailPage() {
           <div className="text-2xl font-bold text-gray-900">{formatNumber(totalFollowers)}</div>
         </div>
 
-        {/* السعر التقريبي لكل منصة */}
         {hasPrices && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">
@@ -147,9 +145,9 @@ export default function InfluencerDetailPage() {
                       <>
                         <div className="text-[10px] text-gray-400 mb-0.5">ابتداءً من</div>
                         <div className="text-lg font-bold text-gray-900">
-                          {acc.price_from && formatNumber(Number(acc.price_from))}
-                          {acc.price_from && acc.price_to && ' — '}
                           {acc.price_to && formatNumber(Number(acc.price_to))}
+                          {acc.price_from && acc.price_to && ' — '}
+                          {acc.price_from && formatNumber(Number(acc.price_from))}
                           <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
                         </div>
                         {acc.price_note && (
@@ -171,7 +169,6 @@ export default function InfluencerDetailPage() {
           </div>
         )}
 
-        {/* المنصات الاجتماعية */}
         {(inf.social_accounts ?? []).length > 0 && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">{isAr ? 'المنصات الاجتماعية' : 'Social Platforms'}</h2>
