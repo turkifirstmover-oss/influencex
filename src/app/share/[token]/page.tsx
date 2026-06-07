@@ -124,6 +124,8 @@ export default function SharePage() {
   if (selected) {
     const avatar = getAvatarColor(selected.full_name)
     const totalFollowers = selected.social_accounts?.reduce((s: number, a: any) => s + (a.followers ?? 0), 0) ?? selected.total_followers ?? 0
+    const hasPrices = (selected.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
+
     return (
       <div className="min-h-screen bg-gray-50" dir="rtl">
         <nav className="bg-white border-b px-4 h-14 flex items-center justify-between sticky top-0 z-50">
@@ -164,7 +166,7 @@ export default function SharePage() {
             {selected.bio && <p className="mt-3 text-sm text-gray-600 border-t pt-3">{selected.bio}</p>}
           </div>
 
-          {/* إجمالي المتابعين فقط */}
+          {/* إجمالي المتابعين */}
           <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
               <Users className="w-3.5 h-3.5"/> إجمالي المتابعين
@@ -172,23 +174,43 @@ export default function SharePage() {
             <div className="text-2xl font-bold text-gray-900">{formatNumber(totalFollowers)}</div>
           </div>
 
-          {(selected.price_from || selected.price_to) && (
+          {/* السعر التقريبي لكل منصة */}
+          {hasPrices && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-4">
-              <h2 className="text-sm font-semibold text-gray-700 mb-2">السعر التقريبي</h2>
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-xl font-bold text-gray-900">
-                  {selected.price_from && formatNumber(Number(selected.price_from))}
-                  {selected.price_from && selected.price_to && ' — '}
-                  {selected.price_to && formatNumber(Number(selected.price_to))}
-                </span>
-                <span className="text-sm text-gray-500">ريال</span>
-                {selected.price_note && (
-                  <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">{selected.price_note}</span>
-                )}
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">السعر التقريبي</h2>
+              <div className="divide-y divide-gray-100">
+                {(selected.social_accounts ?? []).map((acc: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between py-3">
+                    <div>
+                      {(acc.price_from || acc.price_to) ? (
+                        <>
+                          <div className="text-[10px] text-gray-400 mb-0.5">ابتداءً من</div>
+                          <div className="text-lg font-bold text-gray-900">
+                            {acc.price_from && formatNumber(Number(acc.price_from))}
+                            {acc.price_from && acc.price_to && ' — '}
+                            {acc.price_to && formatNumber(Number(acc.price_to))}
+                            <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
+                          </div>
+                          {acc.price_note && (
+                            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">
+                              {acc.price_note}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-400">— لا يوجد سعر</span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700">
+                      {PLATFORM_LABELS[acc.platform] ?? acc.platform}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
+          {/* المنصات الاجتماعية */}
           {(selected.social_accounts ?? []).length > 0 && (
             <div className="bg-white border border-gray-100 rounded-2xl p-4 mb-8">
               <h2 className="text-sm font-semibold text-gray-700 mb-3">المنصات الاجتماعية</h2>
@@ -250,7 +272,13 @@ export default function SharePage() {
           {influencers.map(inf => {
             const av = getAvatarColor(inf.full_name)
             const hasSocials = (inf.social_accounts ?? []).length > 0
-            const hasPrice = inf.price_from || inf.price_to
+            const hasPrice = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
+            const minPrice = (inf.social_accounts ?? [])
+              .filter((a: any) => a.price_from || a.price_to)
+              .reduce((min: number, a: any) => {
+                const p = Number(a.price_from ?? a.price_to)
+                return min === 0 ? p : Math.min(min, p)
+              }, 0)
 
             return (
               <div key={inf.id} onClick={() => setSelected(inf)}
@@ -305,7 +333,7 @@ export default function SharePage() {
                     <div>
                       <div className="text-[10px] text-gray-400">ابتداءً من</div>
                       <div className="text-sm font-semibold text-gray-900">
-                        {formatNumber(Number(inf.price_from ?? inf.price_to))}
+                        {formatNumber(minPrice)}
                         <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
                       </div>
                     </div>
