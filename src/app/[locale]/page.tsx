@@ -6,13 +6,14 @@ import { Search, X, Users, Eye, Briefcase, BadgeCheck, LayoutDashboard, Moon, Su
 import { formatNumber, cn } from '@/lib/utils'
 
 const NICHES = [
-  { value: 'all',       label: 'الكل' },
-  { value: 'news',      label: 'الصحافة' },
-  { value: 'media',     label: 'إعلامي' },
-  { value: 'business',  label: 'ريادة الأعمال' },
-  { value: 'marketing', label: 'تسويق' },
-  { value: 'tech',      label: 'تقني' },
-  { value: 'ugc',       label: 'UGC' },
+  { value: 'all',         label: 'الكل' },
+  { value: 'news',        label: 'الصحافة' },
+  { value: 'media',       label: 'الإعلام' },
+  { value: 'business',    label: 'ريادة الأعمال' },
+  { value: 'marketing',   label: 'التسويق' },
+  { value: 'tech',        label: 'التقنية' },
+  { value: 'ugc',         label: 'UGC' },
+  { value: 'fal_license', label: 'رخصة فال' },
 ]
 
 const PLATFORMS = [
@@ -29,8 +30,9 @@ const PLATFORM_LABELS: Record<string,string> = {
 }
 
 const NICHE_LABELS: Record<string,string> = {
-  news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
-  marketing:'تسويق', tech:'تقني', ugc:'UGC',
+  news:'الصحافة', media:'الإعلام', business:'ريادة الأعمال',
+  marketing:'التسويق', tech:'التقنية', ugc:'UGC',
+  fal_license:'رخصة فال',
   lifestyle:'لايف ستايل', fashion:'أزياء', auto:'سيارات',
   sports:'رياضة', food:'طعام', travel:'سفر'
 }
@@ -154,7 +156,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             </button>
           )}
 
-          {/* المجال */}
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'المجال' : 'Niche'}
@@ -170,7 +171,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             ))}
           </div>
 
-          {/* المنصة */}
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'المنصة' : 'Platform'}
@@ -190,7 +190,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             ))}
           </div>
 
-          {/* الجنس */}
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'الجنس' : 'Gender'}
@@ -206,7 +205,6 @@ export default function HomePage({ params }: { params: { locale: string } }) {
             ))}
           </div>
 
-          {/* التوثيق */}
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>
               {isAr ? 'التوثيق' : 'Verified'}
@@ -243,7 +241,13 @@ export default function HomePage({ params }: { params: { locale: string } }) {
               {filtered.map(inf => {
                 const av = getAvColor(inf.full_name)
                 const hasSocials = (inf.social_accounts ?? []).length > 0
-                const hasPrice = inf.price_from || inf.price_to
+                const hasPrice = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
+                const minPrice = (inf.social_accounts ?? [])
+                  .filter((a: any) => a.price_from || a.price_to)
+                  .reduce((min: number, a: any) => {
+                    const p = Number(a.price_from ?? a.price_to)
+                    return min === 0 ? p : Math.min(min, p)
+                  }, 0)
 
                 return (
                   <div key={inf.id} className={cn('rounded-2xl border p-4 flex flex-col gap-3 transition-colors', dark ? 'bg-[#111] border-[#2a2a2a] hover:border-[#3a3a3a]' : 'bg-white border-gray-100 hover:shadow-sm')}>
@@ -301,7 +305,7 @@ export default function HomePage({ params }: { params: { locale: string } }) {
                         <div>
                           <div className={cn('text-[10px]', dark ? 'text-gray-500' : 'text-gray-400')}>ابتداءً من</div>
                           <div className={cn('text-sm font-bold', dark ? 'text-white' : 'text-gray-900')}>
-                            {formatNumber(Number(inf.price_from ?? inf.price_to))}
+                            {formatNumber(minPrice)}
                             <span className={cn('text-xs font-normal mr-1', dark ? 'text-gray-500' : 'text-gray-400')}>ريال</span>
                           </div>
                         </div>
