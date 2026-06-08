@@ -8,10 +8,10 @@ import {
   Upload, Download, Clock, Copy
 } from 'lucide-react'
 
-const NICHES = ['news','media','business','marketing','tech','ugc']
+const NICHES = ['news','media','business','marketing','tech','ugc','fal_license']
 const NICHE_AR: Record<string,string> = {
-  news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
-  marketing:'تسويق', tech:'تقني', ugc:'UGC'
+  news:'الصحافة', media:'الإعلام', business:'ريادة الأعمال',
+  marketing:'التسويق', tech:'التقنية', ugc:'UGC', fal_license:'رخصة فال'
 }
 const PLATFORMS = ['instagram','tiktok','snapchat','youtube','twitter']
 const PLATFORM_LABELS: Record<string,string> = {
