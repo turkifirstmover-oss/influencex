@@ -16,16 +16,21 @@ const PLATFORM_COLORS: Record<string,{bg:string,text:string}> = {
   twitter:  { bg:'bg-gray-100',  text:'text-gray-800'   },
 }
 const NICHE_LABELS: Record<string,string> = {
-  news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
-  marketing:'تسويق', tech:'تقني', ugc:'UGC',
+  news:'الصحافة', media:'الإعلام', business:'ريادة الأعمال',
+  marketing:'التسويق', tech:'التقنية', ugc:'UGC',
+  fal_license:'رخصة فال',
   lifestyle:'لايف ستايل', fashion:'أزياء', auto:'سيارات',
   sports:'رياضة', food:'طعام', travel:'سفر'
 }
 const NICHES = [
-  { value:'all', label:'الكل' }, { value:'news', label:'الصحافة' },
-  { value:'media', label:'إعلامي' }, { value:'business', label:'ريادة الأعمال' },
-  { value:'marketing', label:'تسويق' }, { value:'tech', label:'تقني' },
+  { value:'all', label:'الكل' },
+  { value:'news', label:'الصحافة' },
+  { value:'media', label:'الإعلام' },
+  { value:'business', label:'ريادة الأعمال' },
+  { value:'marketing', label:'التسويق' },
+  { value:'tech', label:'التقنية' },
   { value:'ugc', label:'UGC' },
+  { value:'fal_license', label:'رخصة فال' },
 ]
 const PLATFORMS = [
   { value:'all', label:'الكل', color:'' },
