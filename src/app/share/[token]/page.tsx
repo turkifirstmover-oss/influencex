@@ -170,7 +170,7 @@ export default function SharePage() {
   if (selected) {
     const avatar = getAvatarColor(selected.full_name)
     const totalFollowers = selected.social_accounts?.reduce((s: number, a: any) => s + (a.followers ?? 0), 0) ?? selected.total_followers ?? 0
-    const hasPrices = (selected.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
+    const hasPrices = (selected.social_accounts ?? []).some((a: any) => a.price_from || a.price_to || a.price_from_home || a.price_to_home)
 
     return (
       <div className={cn('min-h-screen', dark ? 'bg-[#0d0d0d]' : 'bg-gray-50')} dir={isAr ? 'rtl' : 'ltr'}>
@@ -219,35 +219,55 @@ export default function SharePage() {
             <div className={cn('text-2xl font-bold', dark ? 'text-white' : 'text-gray-900')}>{formatNumber(totalFollowers)}</div>
           </div>
 
+          {/* السعر التقريبي */}
           {hasPrices && (
             <div className={cn('border rounded-2xl p-4 mb-4', dark ? 'bg-[#111] border-[#2a2a2a]' : 'bg-white border-gray-100')}>
               <h2 className={cn('text-sm font-semibold mb-3', dark ? 'text-gray-300' : 'text-gray-700')}>{isAr ? 'السعر التقريبي' : 'Estimated Price'}</h2>
               <div className={cn('divide-y', dark ? 'divide-[#2a2a2a]' : 'divide-gray-100')}>
-                {(selected.social_accounts ?? []).map((acc: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between py-3">
-                    <div>
-                      {(acc.price_from || acc.price_to) ? (
-                        <>
-                          <div className={cn('text-[10px] mb-0.5', dark ? 'text-gray-500' : 'text-gray-400')}>ابتداءً من</div>
-                          <div className={cn('text-lg font-bold', dark ? 'text-white' : 'text-gray-900')}>
-                            {acc.price_to && formatNumber(Number(acc.price_to))}
-                            {acc.price_from && acc.price_to && ' — '}
-                            {acc.price_from && formatNumber(Number(acc.price_from))}
-                            <span className={cn('text-xs font-normal mr-1', dark ? 'text-gray-500' : 'text-gray-400')}>ريال</span>
+                {(selected.social_accounts ?? []).map((acc: any, i: number) => {
+                  const hasOnsite = acc.price_from || acc.price_to
+                  const hasHome = acc.price_from_home || acc.price_to_home
+                  if (!hasOnsite && !hasHome) return null
+                  return (
+                    <div key={i} className="py-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={cn('text-sm font-semibold', dark ? 'text-gray-300' : 'text-gray-700')}>
+                          {PLATFORM_LABELS[acc.platform] ?? acc.platform}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {hasOnsite && (
+                          <div className={cn('rounded-xl px-3 py-2', dark ? 'bg-[#1a1a2e]' : 'bg-violet-50')}>
+                            <div className={cn('text-[10px] font-medium mb-0.5', dark ? 'text-violet-400' : 'text-violet-500')}>حضوري</div>
+                            <div className={cn('text-base font-bold', dark ? 'text-white' : 'text-gray-900')}>
+                              {acc.price_to && formatNumber(Number(acc.price_to))}
+                              {acc.price_from && acc.price_to && ' — '}
+                              {acc.price_from && formatNumber(Number(acc.price_from))}
+                              <span className={cn('text-xs font-normal mr-1', dark ? 'text-gray-500' : 'text-gray-400')}>ريال</span>
+                            </div>
+                            {acc.price_note && (
+                              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">{acc.price_note}</span>
+                            )}
                           </div>
-                          {acc.price_note && (
-                            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">{acc.price_note}</span>
-                          )}
-                        </>
-                      ) : (
-                        <span className={cn('text-xs', dark ? 'text-gray-500' : 'text-gray-400')}>— {isAr ? 'لا يوجد سعر' : 'No price'}</span>
-                      )}
+                        )}
+                        {hasHome && (
+                          <div className={cn('rounded-xl px-3 py-2', dark ? 'bg-[#0d1f1a]' : 'bg-emerald-50')}>
+                            <div className={cn('text-[10px] font-medium mb-0.5', dark ? 'text-emerald-400' : 'text-emerald-600')}>منزلي</div>
+                            <div className={cn('text-base font-bold', dark ? 'text-white' : 'text-gray-900')}>
+                              {acc.price_to_home && formatNumber(Number(acc.price_to_home))}
+                              {acc.price_from_home && acc.price_to_home && ' — '}
+                              {acc.price_from_home && formatNumber(Number(acc.price_from_home))}
+                              <span className={cn('text-xs font-normal mr-1', dark ? 'text-gray-500' : 'text-gray-400')}>ريال</span>
+                            </div>
+                            {acc.price_note_home && (
+                              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">{acc.price_note_home}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <span className={cn('text-sm font-semibold', dark ? 'text-gray-300' : 'text-gray-700')}>
-                      {PLATFORM_LABELS[acc.platform] ?? acc.platform}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -333,7 +353,6 @@ export default function SharePage() {
               {isAr ? 'مسح الكل' : 'Clear'} <X className="w-3 h-3"/>
             </button>
           )}
-
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>{isAr ? 'المجال' : 'Niche'}</span>
             {NICHES.map(n => (
@@ -344,7 +363,6 @@ export default function SharePage() {
               </button>
             ))}
           </div>
-
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>{isAr ? 'المنصة' : 'Platform'}</span>
             {PLATFORMS.map(p => (
@@ -356,7 +374,6 @@ export default function SharePage() {
               </button>
             ))}
           </div>
-
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>{isAr ? 'الجنس' : 'Gender'}</span>
             {(['all','male','female'] as const).map(g => (
@@ -367,7 +384,6 @@ export default function SharePage() {
               </button>
             ))}
           </div>
-
           <div className="flex flex-col gap-0.5">
             <span className={cn('text-xs font-medium px-2 mb-1 text-right', dark ? 'text-gray-500' : 'text-gray-400')}>{isAr ? 'التوثيق' : 'Verified'}</span>
             <label className="flex items-center justify-end gap-2 px-2.5 py-1.5 cursor-pointer" onClick={() => setVerified(v => !v)}>
@@ -393,11 +409,15 @@ export default function SharePage() {
               {filtered.map(inf => {
                 const av = getAvColor(inf.full_name)
                 const hasSocials = (inf.social_accounts ?? []).length > 0
-                const hasPrice = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
+                const hasPrice = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to || a.price_from_home || a.price_to_home)
                 const minPrice = (inf.social_accounts ?? [])
-                  .filter((a: any) => a.price_from || a.price_to)
+                  .filter((a: any) => a.price_from || a.price_to || a.price_from_home || a.price_to_home)
                   .reduce((min: number, a: any) => {
-                    const p = Number(a.price_from ?? a.price_to)
+                    const prices = [
+                      a.price_from ? Number(a.price_from) : null,
+                      a.price_from_home ? Number(a.price_from_home) : null,
+                    ].filter(Boolean) as number[]
+                    const p = prices.length > 0 ? Math.min(...prices) : 0
                     return min === 0 ? p : Math.min(min, p)
                   }, 0)
 
