@@ -166,7 +166,9 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
 
   function addSocial() {
     setEditData((p:any) => ({...p, social_accounts:[...(p.social_accounts??[]),
-      {platform:'instagram',handle:'',followers:0,profile_url:'',price_from:'',price_to:'',price_note:'غير شامل الضريبة'}
+      {platform:'instagram',handle:'',followers:0,profile_url:'',
+       price_from:'',price_to:'',price_note:'غير شامل الضريبة',
+       price_from_home:'',price_to_home:'',price_note_home:'غير شامل الضريبة'}
     ]}))
   }
   function updateSocial(i:number, key:string, val:any) {
@@ -560,8 +562,10 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                           type="number" placeholder="عدد المتابعين"
                           className="col-span-2 border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-violet-400"/>
                       </div>
+
+                      {/* السعر الحضوري */}
                       <div className="border-t border-gray-100 pt-2">
-                        <p className="text-[10px] text-gray-400 mb-1.5">السعر التقريبي (اختياري)</p>
+                        <p className="text-[10px] text-violet-600 font-medium mb-1.5">السعر التقريبي حضوري</p>
                         <div className="grid grid-cols-3 gap-2">
                           <input value={acc.price_to||''} onChange={e=>updateSocial(i,'price_to',e.target.value)}
                             type="number" placeholder="الأكبر ←"
@@ -576,6 +580,25 @@ export default function AdminPage({ params }: { params: { locale: string } }) {
                           </select>
                         </div>
                       </div>
+
+                      {/* السعر المنزلي */}
+                      <div className="border-t border-gray-100 pt-2">
+                        <p className="text-[10px] text-emerald-600 font-medium mb-1.5">السعر التقريبي منزلي</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input value={acc.price_to_home||''} onChange={e=>updateSocial(i,'price_to_home',e.target.value)}
+                            type="number" placeholder="الأكبر ←"
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-emerald-400"/>
+                          <input value={acc.price_from_home||''} onChange={e=>updateSocial(i,'price_from_home',e.target.value)}
+                            type="number" placeholder="→ الأصغر"
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-emerald-400"/>
+                          <select value={acc.price_note_home||'غير شامل الضريبة'} onChange={e=>updateSocial(i,'price_note_home',e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-emerald-400">
+                            <option value="غير شامل الضريبة">غير شامل الضريبة</option>
+                            <option value="شامل الضريبة">شامل الضريبة</option>
+                          </select>
+                        </div>
+                      </div>
+
                     </div>
                   ))}
                 </div>
