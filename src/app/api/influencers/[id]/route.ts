@@ -35,18 +35,48 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   try {
     const body = await req.json()
     const supabase = createAdminClient()
+
     const {
-      social_accounts, id: _id,
-      total_followers, avg_views, avg_engagement, platform_count,
+      social_accounts,
+      id: _id,
+      total_followers,
+      avg_views,
+      avg_engagement,
+      platform_count,
+      brand_names,
+      collab_types,
+      media_items,
+      brand_collaborations,
       ...infData
     } = body
+
+    // حقول جدول influencers فقط
+    const allowedFields = [
+      'slug', 'full_name', 'handle', 'bio', 'avatar_url',
+      'country', 'city', 'gender', 'niche', 'languages',
+      'is_verified', 'is_featured', 'is_active',
+    ]
+    const cleanInfData: any = {}
+    for (const key of allowedFields) {
+      if (key in infData) cleanInfData[key] = infData[key]
+    }
+
     const { data, error } = await supabase
       .from('influencers')
-      .update(infData)
+      .update(cleanInfData)
       .eq('id', params.id)
       .select()
       .single()
     if (error) throw error
+
+    // حفظ brand_names و collab_types
+    if (brand_names !== undefined) {
+      await supabase.from('influencers').update({ brand_names }).eq('id', params.id)
+    }
+    if (collab_types !== undefined) {
+      await supabase.from('influencers').update({ collab_types }).eq('id', params.id)
+    }
+
     if (social_accounts !== undefined) {
       await supabase.from('social_accounts').delete().eq('influencer_id', params.id)
       if (social_accounts?.length > 0) {
@@ -60,16 +90,18 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             followers:       Math.max(0, Number(sa.followers) || 0),
             avg_views:       Math.max(0, Number(sa.avg_views) || 0),
             engagement_rate: Math.max(0, Number(sa.engagement_rate) || 0),
-            price_from:       sa.price_from ? Number(sa.price_from) : null,
-            price_to:         sa.price_to ? Number(sa.price_to) : null,
-            price_note:       sa.price_note || null,
-            price_from_home:  sa.price_from_home ? Number(sa.price_from_home) : null,
-            price_to_home:    sa.price_to_home ? Number(sa.price_to_home) : null,
-            price_note_home:  sa.price_note_home || null,
+            price_from:      sa.price_from ? Number(sa.price_from) : null,
+            price_to:        sa.price_to ? Number(sa.price_to) : null,
+            price_note:      sa.price_note || null,
+            price_from_home: sa.price_from_home ? Number(sa.price_from_home) : null,
+            price_to_home:   sa.price_to_home ? Number(sa.price_to_home) : null,
+            price_note_home: sa.price_note_home || null,
           }))
-        await supabase.from('social_accounts').insert(saRows)
+        const { error: saError } = await supabase.from('social_accounts').insert(saRows)
+        if (saError) throw saError
       }
     }
+
     return NextResponse.json(data)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
