@@ -21,8 +21,9 @@ const PLATFORM_COLORS: Record<string,{bg:string,text:string}> = {
 }
 
 const NICHE_LABELS: Record<string,string> = {
-  news:'الصحافة', media:'إعلامي', business:'ريادة الأعمال',
-  marketing:'تسويق', tech:'تقني', ugc:'UGC',
+  news:'الصحافة', media:'الإعلام', business:'ريادة الأعمال',
+  marketing:'التسويق', tech:'التقنية', ugc:'UGC',
+  fal_license:'رخصة فال',
   lifestyle:'لايف ستايل', fashion:'أزياء', auto:'سيارات',
   sports:'رياضة', food:'طعام', travel:'سفر'
 }
@@ -73,7 +74,7 @@ export default function InfluencerDetailPage() {
 
   const avatar = getAvatarColor(inf.full_name)
   const totalFollowers = inf.social_accounts?.reduce((s: number, a: any) => s + (a.followers ?? 0), 0) ?? inf.total_followers ?? 0
-  const hasPrices = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to)
+  const hasPrices = (inf.social_accounts ?? []).some((a: any) => a.price_from || a.price_to || a.price_from_home || a.price_to_home)
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isAr ? 'rtl' : 'ltr'}>
@@ -132,39 +133,61 @@ export default function InfluencerDetailPage() {
           <div className="text-2xl font-bold text-gray-900">{formatNumber(totalFollowers)}</div>
         </div>
 
+        {/* السعر التقريبي */}
         {hasPrices && (
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">
               {isAr ? 'السعر التقريبي' : 'Estimated Price'}
             </h2>
             <div className="divide-y divide-gray-100">
-              {(inf.social_accounts ?? []).map((acc: any, i: number) => (
-                <div key={i} className="flex items-center justify-between py-3">
-                  <div>
-                    {(acc.price_from || acc.price_to) ? (
-                      <>
-                        <div className="text-[10px] text-gray-400 mb-0.5">ابتداءً من</div>
-                        <div className="text-lg font-bold text-gray-900">
-                          {acc.price_to && formatNumber(Number(acc.price_to))}
-                          {acc.price_from && acc.price_to && ' — '}
-                          {acc.price_from && formatNumber(Number(acc.price_from))}
-                          <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
+              {(inf.social_accounts ?? []).map((acc: any, i: number) => {
+                const hasOnsite = acc.price_from || acc.price_to
+                const hasHome = acc.price_from_home || acc.price_to_home
+                if (!hasOnsite && !hasHome) return null
+                return (
+                  <div key={i} className="py-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-semibold text-gray-700">
+                        {PLATFORM_LABELS[acc.platform] ?? acc.platform}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {hasOnsite && (
+                        <div className="bg-violet-50 rounded-xl px-3 py-2">
+                          <div className="text-[10px] text-violet-500 font-medium mb-0.5">حضوري</div>
+                          <div className="text-base font-bold text-gray-900">
+                            {acc.price_to && formatNumber(Number(acc.price_to))}
+                            {acc.price_from && acc.price_to && ' — '}
+                            {acc.price_from && formatNumber(Number(acc.price_from))}
+                            <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
+                          </div>
+                          {acc.price_note && (
+                            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">
+                              {acc.price_note}
+                            </span>
+                          )}
                         </div>
-                        {acc.price_note && (
-                          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">
-                            {acc.price_note}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">— لا يوجد سعر</span>
-                    )}
+                      )}
+                      {hasHome && (
+                        <div className="bg-emerald-50 rounded-xl px-3 py-2">
+                          <div className="text-[10px] text-emerald-600 font-medium mb-0.5">منزلي</div>
+                          <div className="text-base font-bold text-gray-900">
+                            {acc.price_to_home && formatNumber(Number(acc.price_to_home))}
+                            {acc.price_from_home && acc.price_to_home && ' — '}
+                            {acc.price_from_home && formatNumber(Number(acc.price_from_home))}
+                            <span className="text-xs font-normal text-gray-400 mr-1">ريال</span>
+                          </div>
+                          {acc.price_note_home && (
+                            <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-1 inline-block">
+                              {acc.price_note_home}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-700">
-                    {PLATFORM_LABELS[acc.platform] ?? acc.platform}
-                  </span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
