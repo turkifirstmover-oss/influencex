@@ -60,9 +60,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             followers:       Math.max(0, Number(sa.followers) || 0),
             avg_views:       Math.max(0, Number(sa.avg_views) || 0),
             engagement_rate: Math.max(0, Number(sa.engagement_rate) || 0),
-            price_from:      sa.price_from ? Number(sa.price_from) : null,
-            price_to:        sa.price_to ? Number(sa.price_to) : null,
-            price_note:      sa.price_note || null,
+            price_from:       sa.price_from ? Number(sa.price_from) : null,
+            price_to:         sa.price_to ? Number(sa.price_to) : null,
+            price_note:       sa.price_note || null,
+            price_from_home:  sa.price_from_home ? Number(sa.price_from_home) : null,
+            price_to_home:    sa.price_to_home ? Number(sa.price_to_home) : null,
+            price_note_home:  sa.price_note_home || null,
           }))
         await supabase.from('social_accounts').insert(saRows)
       }
